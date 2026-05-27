@@ -117,9 +117,12 @@ double PenaltyCost::evalCluster(const BezierCurve& c) const {
                 if (!segmentsIntersect(curve_pts[ci], curve_pts[ci+1],
                                        sp.pts[si], sp.pts[si+1], &isect))
                     continue;
-                // Endpoint tolerance
+                // Endpoint tolerance: skip intersections close to either arc endpoint.
+                // Use a generous tolerance (1.5m ≈ lane half-width) to exempt the
+                // natural merging/diverging zone where same-entry curves share their
+                // start section and overlap is geometrically expected.
                 double de = distToAllEndpoints(isect, c, BezierCurve{});
-                if (de < 0.02) continue;
+                if (de < 1.5) continue;
                 // a2 exemption
                 if (sp.a2_radius > 0 && sdf) {
                     auto [d, dummy] = sdf->queryWithGrad(isect);
