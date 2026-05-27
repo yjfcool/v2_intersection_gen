@@ -384,26 +384,100 @@ BezierCurve buildInitialCurve(const Vec2d& p0, const Vec2d& t0,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  U-turn (unchanged)
+//  U-turn: smooth semicircular arc with guaranteed G1 continuity at endpoints
+//
+//  Strategy: construct a 3-knot curve {p0, apex, p1} where:
+//    - apex is placed far enough forward (along entry tangent direction) to
+//      form a smooth semicircular path
+//    - apex tangent direction is lateral (perpendicular to entry direction),
+//      pointing from p0-side towards p1-side, which is the correct tangent
+//      at the top of a semicircular U-turn
+//    - alpha (handle length ratio) tuned for smooth circular-like curvature
+//
+//  The resulting curve satisfies:
+//    - G1 at p0: curve starts in direction t0
+//    - G1 at p1: curve ends in direction t1
+//    - Smooth semicircular shape without kinks or bends
 // ─────────────────────────────────────────────────────────────────────────────
 BezierCurve buildTwoSegmentUTurn(const Vec2d& p0, const Vec2d& t0,
                                   const Vec2d& p1, const Vec2d& t1,
                                   const SDFField& sdf,
                                   const Polygon2d&)
 {
-    double d = (p1-p0).norm();
-    Vec2d perp{-t0.y(), t0.x()};
-    Vec2d mid = 0.5*(p0+p1) + perp*(d*0.5);
+    // Normalise endpoint tangents
+    Vec2d T0 = t0.normalized();
+    Vec2d T1 = t1.normalized();
 
-    auto [ds, dum1] = sdf.queryWithGrad(mid);
-    if (ds < 0.2) {
-        Vec2d m2 = 0.5*(p0+p1) - perp*(d*0.5);
-        auto [d2, dum2] = sdf.queryWithGrad(m2);
-        if (d2 > ds) mid = m2;
+    // Lateral distance between p0 and p1 (perpendicular to entry direction)
+    Vec2d perp_left{-T0.y(), T0.x()};   // left perpendicular of entry direction
+
+    // Determine which side p1 is on relative to p0's entry direction.
+    // For a standard left U-turn, p1 is to the LEFT of t0.
+    double lateral_offset = (p1 - p0).dot(perp_left);
+
+    // U-turn radius: should be large enough for a smooth semicircle.
+    // The radius is at least half the lateral distance, but also at least
+    // a comfortable minimum (related to typical lane width and turning radius).
+    double lat_dist = std::abs(lateral_offset);
+    double forward_dist = (p1 - p0).dot(T0);  // how far apart along entry direction
+
+    // Compute a suitable apex forward extension distance.
+    // For a semicircular U-turn the apex should be at distance R from both
+    // endpoints where R = max(lat_dist, comfortable_min_radius).
+    // The forward extension is: sqrt(R² - (lat_dist/2)²) for a circle,
+    // but we use a simpler heuristic: go forward enough for a smooth arc.
+    double min_radius = std::max(4.0, lat_dist * 0.8);
+    double apex_forward = std::max(min_radius,
+                                    std::max(lat_dist * 1.2, 
+                                             std::abs(forward_dist) + min_radius * 0.6));
+
+    // Apex position: midpoint of p0 and p1, extended forward along entry direction
+    Vec2d base_mid = 0.5 * (p0 + p1);
+    // The "forward" direction for apex placement is the average of t0 and -t1
+    // (since t1 points backwards for a U-turn, -t1 points forward from p1's perspective)
+    Vec2d forward_dir = (T0 - T1);  // sum of forward-pointing directions
+    if (forward_dir.norm() < 1e-8) forward_dir = T0;  // fallback
+    forward_dir.normalize();
+
+    Vec2d apex = base_mid + forward_dir * apex_forward;
+
+    // Try the preferred side; if SDF shows obstacle, try opposite
+    if (sdf.valid()) {
+        auto [d_apex, dum1] = sdf.queryWithGrad(apex);
+        if (d_apex < 0.3) {
+            // Try mirrored apex (opposite forward direction)
+            Vec2d apex_alt = base_mid - forward_dir * apex_forward;
+            auto [d_alt, dum2] = sdf.queryWithGrad(apex_alt);
+            if (d_alt > d_apex) {
+                apex = apex_alt;
+                forward_dir = -forward_dir;
+            }
+        }
     }
-    Vec2d tm = (p1-p0).norm()>1e-6 ? (p1-p0).normalized() : t0;
-    return makeCurveFromKnots({p0,mid,p1},
-                               {t0.normalized(),tm,t1.normalized()}, 0.4);
+
+    // Apex tangent: lateral direction at the top of the U-turn arc.
+    // This should be perpendicular to the forward direction, pointing from
+    // p0-side towards p1-side to maintain consistent arc orientation.
+    Vec2d apex_perp{-forward_dir.y(), forward_dir.x()};  // left of forward
+    // Determine correct lateral sign: apex tangent should point from the
+    // p0 side of the arc towards the p1 side
+    double sign = (p1 - p0).dot(apex_perp);
+    Vec2d T_apex = (sign >= 0) ? apex_perp : -apex_perp;
+
+    // Build the 2-segment G1 curve through {p0, apex, p1}
+    // Use alpha ≈ 0.39 which approximates a circular arc well for 90° turns
+    // (each segment turns ~90° for a total 180° U-turn)
+    double alpha = 0.39;
+
+    // Adjust alpha based on segment lengths for more balanced curvature
+    double len0 = (apex - p0).norm();
+    double len1 = (p1 - apex).norm();
+    double avg_len = 0.5 * (len0 + len1);
+    // For very elongated U-turns, slightly reduce alpha to prevent overshoot
+    if (avg_len > min_radius * 2.0) alpha = 0.35;
+
+    return makeCurveFromKnots({p0, apex, p1},
+                               {T0, T_apex, T1}, alpha);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
