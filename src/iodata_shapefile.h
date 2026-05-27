@@ -244,7 +244,9 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
     std::string qgis_fname = "/intersection_gen.qgs";
     std::string qgis_temp = proj_dir + qgis_fname;
     std::string dest_file = std::filesystem::path(dir).parent_path().parent_path().string() + qgis_fname;
-    if (std::filesystem::exists(qgis_temp)) std::filesystem::copy_file(qgis_temp, dest_file);
+    if (std::filesystem::exists(qgis_temp))
+        std::filesystem::copy_file(qgis_temp, dest_file,
+            std::filesystem::copy_options::skip_existing);
 #endif
     return true;
 }

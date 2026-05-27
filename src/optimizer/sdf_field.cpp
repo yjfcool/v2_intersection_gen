@@ -46,8 +46,30 @@ void SDFField::build(const BoundingBox2d&roi,const std::vector<Obstacle>&obs,dou
     std::vector<Polygon2d> buffered;
     for(auto&o:obs){if(o.geometry.outer.empty())continue;
         buffered.push_back(buf>0?bufferPolygon(o.geometry,buf):o.geometry);}
-    if(buffered.size()>1){auto m=unionPolygons(buffered);buffered_={m};}
-    else buffered_=buffered;
+    // FIX: do NOT force-union all buffered polygons into one.
+    // When obstacles are non-overlapping, Clipper2's Union() returns multiple
+    // separate paths and the old code only kept sol[0], silently discarding
+    // all other obstacles from the SDF. Instead, keep every buffered polygon
+    // independently; rebuildGrid / distToPolygons / insideAny already iterate
+    // over all polygons in the list correctly.
+    if(buffered.size()>1){
+        // Attempt union only to merge OVERLAPPING obstacles (reduces polygon count).
+        // For each connected component returned by Union, keep it as a separate
+        // Polygon2d so non-overlapping obstacles are never discarded.
+        Clipper2Lib::PathsD sub;
+        for(auto&p:buffered)if(!p.outer.empty())sub.push_back(toCP(p.outer));
+        auto sol=Clipper2Lib::Union(sub,Clipper2Lib::FillRule::NonZero);
+        if(!sol.empty()){
+            buffered_.clear();
+            for(auto&path:sol){
+                Polygon2d pg; pg.outer=fromCP(path); buffered_.push_back(pg);
+            }
+        } else {
+            buffered_=buffered;
+        }
+    } else {
+        buffered_=buffered;
+    }
     rebuildGrid(buffered_);
 }
 void SDFField::buildFromPolygons(const BoundingBox2d&roi,const std::vector<Polygon2d>&polys,double cs){
