@@ -78,7 +78,7 @@ std::vector<SiblingCurve> ConnectivityGenerator::buildSiblings(
 
 BezierCurve ConnectivityGenerator::postProcess(
     const BezierCurve&c,const SDFField&sdf,const Polygon2d&fence,double kmax,
-    const Vec2d&t0_orig,const Vec2d&t1_orig)
+    const Vec2d&t0_orig,const Vec2d&t1_orig,bool skip_elastic_band)
 {
     // RC-3 FIX: after adaptiveRefine splits, warm-start re-optimise
     auto refined=adaptiveRefine(c,sdf,kmax);
@@ -98,12 +98,38 @@ BezierCurve ConnectivityGenerator::postProcess(
         cur = optimiseCurve(cost2, solver_, cur, /*outer_iters=*/2);
     }
 
-    // Derive exact endpoints from original lane tangent args
+    // Derive exact endpoints and tangents from original lane geometry args
     Vec2d st = t0_orig.norm()>1e-8 ? t0_orig.normalized() : cur.startTan();
     Vec2d et = t1_orig.norm()>1e-8 ? t1_orig.normalized() : cur.endTan();
-    // Exact endpoint positions (these are the ONLY correct reference)
-    Vec2d ep0 = cur.startPt();   // set by makeCubicG1/buildArch from p0
-    Vec2d ep1 = cur.endPt();     // set by makeCubicG1/buildArch from p1
+    // Exact endpoint positions must come from the optimised curve
+    // (which was initialised from p0/p1 and has G1 enforced throughout)
+    Vec2d ep0 = cur.startPt();
+    Vec2d ep1 = cur.endPt();
+
+    // For U-turns (skip_elastic_band=true) or any high-curvature curve where
+    // elasticBandSmooth would produce oscillations: skip the band-smooth path
+    // and just hard-pin endpoints + enforce G1 tangents analytically.
+    if (skip_elastic_band) {
+        // Hard-pin endpoints and tangent handles
+        if (!cur.segs.empty()) {
+            cur.segs.front().ctrl[0] = ep0;
+            cur.segs.back() .ctrl[3] = ep1;
+            // Re-enforce G1 tangent directions at endpoints
+            {
+                Vec2d& c1 = cur.segs.front().ctrl[1];
+                double lam = (c1 - ep0).dot(st);
+                lam = std::max(lam, 0.05);
+                c1 = ep0 + lam * st;
+            }
+            {
+                Vec2d& c2 = cur.segs.back().ctrl[2];
+                double mu = (ep1 - c2).dot(et);
+                mu = std::max(mu, 0.05);
+                c2 = ep1 - mu * et;
+            }
+        }
+        return cur;
+    }
 
     double arc = cur.arcLength();
     int n_samp  = std::max(40, (int)(arc / 0.15));
@@ -181,9 +207,6 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
             sib_polys.push_back(sib.curve.sampleByArcLength(20));
     }
     BezierCurve initial=buildInitialCurve(p0,t0,p1,t1,sdf,input.area.coarse_area,sib_polys);
-    std::cout << toWKT(genVectorline({p0[0],p0[1],0}, {t0[0],t0[1],0}, 1.0), conn.entry_lane_id) << std::endl;
-    std::cout << toWKT(genVectorline({p1[0],p1[1],0}, {t1[0],t1[1],0}, 1.0), conn.exit_lane_id) << std::endl;
-    std::cout << toWKT(toArray(initial.sample(50)), cc.id) << std::endl;
 
     PenaltyCost cost;
     cost.proto=initial;cost.sdf=&sdf;
@@ -198,8 +221,13 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     cost.full_param_mode = (initial.numSegments() > 1);
 
     BezierCurve opt=optimiseCurve(cost,solver_,initial,4);
-    BezierCurve final_c=postProcess(opt,sdf,input.area.coarse_area,0.25,t0,t1);
+    bool is_uturn = (conn.turn_type==TurnType::UTurnLeft||conn.turn_type==TurnType::UTurnRight);
+    BezierCurve final_c=postProcess(opt,sdf,input.area.coarse_area,0.25,t0,t1,is_uturn);
     cc.curve=final_c;
+    // Print final curve for QGIS verification
+    std::cout << toWKT(genVectorline({p0[0],p0[1],0}, {t0[0],t0[1],0}, 1.0), conn.entry_lane_id) << std::endl;
+    std::cout << toWKT(genVectorline({p1[0],p1[1],0}, {t1[0],t1[1],0}, 1.0), conn.exit_lane_id) << std::endl;
+    std::cout << toWKT(toArray(final_c.sample(50)), cc.id) << std::endl;
     validate(cc,input,sdf);
     if(pre.narrow_passage&&cc.status==CurveStatus::OK)cc.status=CurveStatus::WarnA2;
     return cc;
