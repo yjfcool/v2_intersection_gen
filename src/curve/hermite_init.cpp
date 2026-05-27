@@ -48,10 +48,14 @@ static Vec2d clampTangent(const Vec2d& tan, const Vec2d& ref, double max_a) {
                  ref.x()*sa*sg + ref.y()*ca);
 }
 
-// SDF-sampled straight line clearance check
+// SDF-sampled straight line clearance check.
+// clearance is the minimum acceptable SDF value along the line.
+// Use clearance=0.0 to only detect actual physical penetration (SDF<0),
+// which avoids false-triggering bypass for lanes that merely pass close
+// to an obstacle but do not physically cross it.
 static bool straightLineClear(const SDFField& sdf,
                                const Vec2d& p0, const Vec2d& p1,
-                               double clearance = 0.15, int n = 30)
+                               double clearance = 0.0, int n = 40)
 {
     if (!sdf.valid()) return true;
     for (int i = 1; i < n; ++i) {
@@ -76,7 +80,7 @@ struct ObstacleAABB {
 
 static ObstacleAABB probeObstacleAABB(const SDFField& sdf,
                                         const Vec2d& p0, const Vec2d& p1,
-                                        double clearance = 0.15)
+                                        double clearance = 0.0)
 {
     // Sample dense grid in the neighbourhood of the direct path
     ObstacleAABB box;
@@ -97,7 +101,7 @@ static ObstacleAABB probeObstacleAABB(const SDFField& sdf,
             double t = (double)iy / (ny/2) * sweep;
             Vec2d pt = p0 + s*along + t*perp;
             auto [d, dummy] = sdf.queryWithGrad(pt);
-            if (d < clearance) {   // in or near obstacle
+            if (d < clearance) {   // in or near obstacle (including safety margin)
                 box.x_min = std::min(box.x_min, pt.x());
                 box.x_max = std::max(box.x_max, pt.x());
                 box.y_min = std::min(box.y_min, pt.y());
@@ -109,80 +113,126 @@ static ObstacleAABB probeObstacleAABB(const SDFField& sdf,
     return box;
 }
 
-// Compute the bypass apex point for a given side (+1 = above, -1 = below).
-// Apex is placed at the obstacle AABB edge + safe clearance, at the
-// longitudinal midpoint of the obstacle.
+// Compute the bypass apex point for a given side (+1 = left of path, -1 = right).
+// Apex is placed at the obstacle's maximum lateral projection + clearance,
+// at the longitudinal midpoint of the obstacle along the path.
 static Vec2d computeApex(const ObstacleAABB& box,
                            const Vec2d& p0, const Vec2d& p1,
-                           int side,              // +1 = left/above, -1 = right/below
+                           int side,              // +1 = left, -1 = right
                            double clearance)
 {
     Vec2d along = (p1 - p0);
     double len = along.norm();
     if (len < 1e-6) return 0.5*(p0+p1);
     along = along * (1.0/len);
-    Vec2d perp{-along.y(), along.x()};   // left normal
+    Vec2d perp{-along.y(), along.x()};   // left normal (unit vector)
 
-    // Longitudinal midpoint of obstacle
-    double lon_mid = 0.5*(box.x_min + box.x_max) * along.x()
-                   + 0.5*(box.y_min + box.y_max) * along.y();
-    // Clamp to [20%, 80%] of path length
+    // Longitudinal midpoint of obstacle box (world coords → project onto path axis)
+    // The box stores world coordinates of sampled points, so we must project
+    // all four corners onto the path tangent and perpendicular axes.
+    // Corners of the axis-aligned world box:
+    double corners_x[4] = {box.x_min, box.x_max, box.x_max, box.x_min};
+    double corners_y[4] = {box.y_min, box.y_min, box.y_max, box.y_max};
+
+    double lon_min = 1e18, lon_max = -1e18;
+    double lat_min = 1e18, lat_max = -1e18;
+    for (int i = 0; i < 4; ++i) {
+        Vec2d c(corners_x[i], corners_y[i]);
+        double lon = c.dot(along);
+        double lat = c.dot(perp);
+        lon_min = std::min(lon_min, lon); lon_max = std::max(lon_max, lon);
+        lat_min = std::min(lat_min, lat); lat_max = std::max(lat_max, lat);
+    }
+
+    // Longitudinal midpoint of obstacle, clamped to [20%, 80%] of path
     double path_lon_0 = p0.dot(along);
     double path_lon_1 = p1.dot(along);
-    double frac = (lon_mid - path_lon_0) / (path_lon_1 - path_lon_0 + 1e-12);
+    double lon_mid_obs = 0.5 * (lon_min + lon_max);
+    double frac = (lon_mid_obs - path_lon_0) / (path_lon_1 - path_lon_0 + 1e-12);
     frac = std::max(0.2, std::min(0.8, frac));
 
-    // Lateral position of apex: obstacle edge + clearance, on chosen side
-    double lat_edge;
-    if (side > 0)
-        lat_edge = box.y_max * perp.y() + box.x_max * perp.x() + clearance;
-    else
-        lat_edge = box.y_min * perp.y() + box.x_min * perp.x() - clearance;
+    // Lateral edge of obstacle on chosen side + clearance
+    double lat_edge = (side > 0) ? (lat_max + clearance) : (lat_min - clearance);
 
-    // Apex in world coordinates
-    Vec2d base = p0 + frac * (p1 - p0);   // point on direct line at lon_frac
-    // Project lateral: apex.dot(perp) = lat_edge
+    // Apex: move from the path along perp to the required lateral position
+    Vec2d base = p0 + frac * (p1 - p0);
     double base_lat = base.dot(perp);
     Vec2d apex = base + (lat_edge - base_lat) * perp;
     return apex;
 }
 
-// Choose which side (left/right) gives more clearance.
-// Also receives already-generated sibling curves to avoid picking
-// the same side as an opposing-direction arch (prevents intersection).
+// Choose which side (left/right of path) is clear for bypass.
+//
+// Key insight for right-hand traffic:
+//   - Right-turn paths (cross2d(t0, p1-p0) < 0): the obstacle lies exactly on
+//     the natural arc. The correct bypass is the INNER side (+1 = left of path
+//     direction = toward the junction centre), giving a shorter, tighter arc.
+//   - Left-turn and straight paths: use SDF gradient voting along the path to
+//     detect which side the obstacle cluster is on.
+//
+// t0_hint: optional entry tangent for right-turn detection. If zero-vector,
+//          fall back to gradient voting.
 static int chooseSide(const SDFField& sdf,
                        const ObstacleAABB& box,
                        const Vec2d& p0, const Vec2d& p1,
                        double clearance,
-                       const std::vector<std::vector<Vec2d>>& sibling_polys)
+                       const std::vector<std::vector<Vec2d>>& sibling_polys,
+                       const Vec2d& t0_hint = Vec2d(0,0))
 {
     Vec2d along = (p1 - p0).normalized();
     Vec2d perp{-along.y(), along.x()};
 
-    double lat_spread = std::max(1.5,
-        std::max(std::abs(box.y_max), std::abs(box.y_min)) + clearance + 0.5);
-
-    Vec2d test_above = 0.5*(p0+p1) + lat_spread * perp;
-    Vec2d test_below = 0.5*(p0+p1) - lat_spread * perp;
-
-    auto [d_above, dum1] = sdf.queryWithGrad(test_above);
-    auto [d_below, dum2] = sdf.queryWithGrad(test_below);
-
-    // Count how many sibling sample points occupy each side
-    int sib_above = 0, sib_below = 0;
-    for (auto& poly : sibling_polys) {
-        for (auto& pt : poly) {
-            double lat = (pt - 0.5*(p0+p1)).dot(perp);
-            if (lat >  0.2) sib_above++;
-            if (lat < -0.2) sib_below++;
+    // ── Right-turn detection ─────────────────────────────────────────────────
+    // For right-hand traffic a right-turn means the vehicle curves to the
+    // right relative to its entry direction.  cross2d(t0, p1-p0) < 0 iff
+    // p1-p0 is to the right of t0, i.e. this is a right turn.
+    // In that case the natural Bezier arc passes through the obstacle that
+    // sits on the inner diagonal of the turn.  The correct bypass is always
+    // the inner side (+1 = left of the along direction = toward junction
+    // centre), which produces the shorter, geometrically natural detour.
+    if (t0_hint.norm() > 1e-8) {
+        double cross_val = cross2d(t0_hint.normalized(), (p1 - p0));
+        if (cross_val < -1e-3) {
+            // Right turn: force inner bypass (+1)
+            return +1;
         }
     }
 
-    // Score each side: prefer high SDF, penalise sibling occupation
-    double score_above = d_above - 0.3 * sib_above;
-    double score_below = d_below - 0.3 * sib_below;
+    // ── Gradient-voting for straight / left-turn paths ───────────────────────
+    double weighted_lat = 0.0;
+    double total_weight = 0.0;
+    constexpr double PROBE = 0.15;
+    constexpr int N = 30;
+    for (int i = 1; i < N; ++i) {
+        double t = (double)i / N;
+        Vec2d pt = p0 + t * (p1 - p0);
+        auto [d, dummy] = sdf.queryWithGrad(pt);
+        if (d > clearance * 1.5) continue;
+        auto [d_lp, dum1] = sdf.queryWithGrad(pt + PROBE * perp);
+        auto [d_lm, dum2] = sdf.queryWithGrad(pt - PROBE * perp);
+        double lat_grad = (d_lp - d_lm) / (2 * PROBE);
+        double w = 1.0 / (d + 0.05);
+        weighted_lat += w * lat_grad;
+        total_weight  += w;
+    }
 
-    return (score_above >= score_below) ? +1 : -1;
+    int primary_side = (total_weight > 1e-10 && weighted_lat > 0) ? +1 : -1;
+
+    // Sibling penalty
+    Vec2d mid = 0.5 * (p0 + p1);
+    int sib_left = 0, sib_right = 0;
+    for (auto& poly : sibling_polys) {
+        for (auto& pt : poly) {
+            double lat = (pt - mid).dot(perp);
+            if (lat >  0.2) sib_left++;
+            if (lat < -0.2) sib_right++;
+        }
+    }
+    int occ_primary  = (primary_side > 0) ? sib_left : sib_right;
+    int occ_opposite = (primary_side > 0) ? sib_right : sib_left;
+    if (occ_primary > occ_opposite + 5) primary_side = -primary_side;
+
+    return primary_side;
 }
 
 // Build a smooth 2-segment arch: p0(t0) → apex(apex_tan) → p1(t1)
@@ -214,32 +264,36 @@ static BezierCurve geometricBypass(const Vec2d& p0, const Vec2d& t0,
                                     const Vec2d& p1, const Vec2d& t1,
                                     const SDFField& sdf,
                                     const Polygon2d& fence,
-                                    double clearance = 0.3,
+                                    double clearance = 0.0,
                                     const std::vector<std::vector<Vec2d>>& sibling_polys = {})
 {
-    auto box = probeObstacleAABB(sdf, p0, p1, clearance * 0.8);
+    // Use the same clearance for probing — detect only actual penetrations
+    auto box = probeObstacleAABB(sdf, p0, p1, clearance);
     if (!box.valid) {
-        // No obstacle detected → direct single-segment curve
+        // No obstacle detected within clearance → direct single-segment curve
         BezierCurve c;
         c.segs.push_back(makeCubicG1(p0, t0.normalized(), p1, t1.normalized(), 0.4));
         return c;
     }
 
-    int side = chooseSide(sdf, box, p0, p1, clearance, sibling_polys);
-    Vec2d apex = computeApex(box, p0, p1, side, clearance + 0.5);
+    // Pass entry tangent so chooseSide can detect right-turns
+    int side = chooseSide(sdf, box, p0, p1, clearance, sibling_polys, t0);
+    // apex_clearance: place apex at clearance + small extra buffer beyond obstacle edge
+    double apex_clearance = clearance + 0.3;
+    Vec2d apex = computeApex(box, p0, p1, side, apex_clearance);
 
     // Verify apex is obstacle-free; if not, try other side
     auto [d_apex, dummy] = sdf.queryWithGrad(apex);
-    if (d_apex < clearance) {
-        apex = computeApex(box, p0, p1, -side, clearance + 0.5);
+    if (d_apex < clearance * 0.5) {
+        apex = computeApex(box, p0, p1, -side, apex_clearance);
     }
 
-    // Verify arch clears obstacles (sample midpoints of each segment)
+    // Verify arch clears obstacles (sample each segment)
     BezierCurve arch = buildArch(p0, t0, apex, p1, t1);
     bool arch_clear = true;
     for (auto& seg : arch.segs) {
-        for (int i = 1; i < 15; ++i) {
-            auto [d, dum] = sdf.queryWithGrad(seg.evaluate((double)i/15));
+        for (int i = 1; i < 20; ++i) {
+            auto [d, dum] = sdf.queryWithGrad(seg.evaluate((double)i/20));
             if (d < clearance * 0.5) { arch_clear = false; break; }
         }
         if (!arch_clear) break;
@@ -248,12 +302,12 @@ static BezierCurve geometricBypass(const Vec2d& p0, const Vec2d& t0,
     if (!arch_clear) {
         // Try opposite side
         BezierCurve arch2 = buildArch(p0, t0,
-            computeApex(box, p0, p1, -side, clearance + 0.5),
+            computeApex(box, p0, p1, -side, apex_clearance),
             p1, t1);
         bool arch2_clear = true;
         for (auto& seg : arch2.segs) {
-            for (int i = 1; i < 15; ++i) {
-                auto [d, dum] = sdf.queryWithGrad(seg.evaluate((double)i/15));
+            for (int i = 1; i < 20; ++i) {
+                auto [d, dum] = sdf.queryWithGrad(seg.evaluate((double)i/20));
                 if (d < clearance * 0.5) { arch2_clear = false; break; }
             }
             if (!arch2_clear) break;
@@ -366,16 +420,37 @@ BezierCurve buildInitialCurve(const Vec2d& p0, const Vec2d& t0,
     if (angleBetween(t0, t1) > M_PI * 0.85)
         return buildTwoSegmentUTurn(p0, t0, p1, t1, sdf, fence);
 
-    // ── Fast path: straight line clear ──────────────────────────────────────
-    if (straightLineClear(sdf, p0, p1, 0.15, 30)) {
-        BezierCurve c;
-        c.segs.push_back(makeCubicG1(p0, t0.normalized(), p1, t1.normalized(), 0.4));
-        return c;
+    // Penetration-only clearance: only trigger bypass when the curve actually
+    // enters an obstacle (SDF < 0).  A clearance of 1.0 was too aggressive —
+    // it caused straight-through lanes (whose centre-line passes 1.25m from an
+    // obstacle) to incorrectly trigger the bypass logic, producing wild detours.
+    //
+    // The optimizer (obstacle_clearance=1.0) still pushes the final curve away
+    // from obstacles to maintain safe lateral distance, but the initial curve
+    // shape should be the geometrically natural one unless it literally crosses
+    // an obstacle.
+    constexpr double INIT_CLEARANCE = 0.0;   // only bypass on actual penetration
+
+    // ── Fast path: check if a direct Bezier arc is clear ────────────────────
+    // Check straight line first (cheap), then verify the actual Bezier arc.
+    if (straightLineClear(sdf, p0, p1, INIT_CLEARANCE, 40)) {
+        BezierSegment trial = makeCubicG1(p0, t0.normalized(), p1, t1.normalized(), 0.4);
+        bool bezier_clear = true;
+        for (int i = 1; i < 20; ++i) {
+            auto [d, dummy] = sdf.queryWithGrad(trial.evaluate((double)i/20));
+            if (d < INIT_CLEARANCE) { bezier_clear = false; break; }
+        }
+        if (bezier_clear) {
+            BezierCurve c;
+            c.segs.push_back(trial);
+            return c;
+        }
+        // Bezier arc penetrates obstacle — fall through to bypass generation
     }
 
     // ── Level-1: geometric direct construction ───────────────────────────────
     {
-        BezierCurve arch = geometricBypass(p0, t0, p1, t1, sdf, fence, 0.3, sibling_polys);
+        BezierCurve arch = geometricBypass(p0, t0, p1, t1, sdf, fence, INIT_CLEARANCE, sibling_polys);
         if (!arch.empty()) return arch;
     }
 
