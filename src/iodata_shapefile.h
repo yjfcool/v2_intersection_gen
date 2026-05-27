@@ -235,9 +235,6 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
         ShapefileEngine::write(dir, fname, shpType, fields, records);
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
-    writeLanes(dir, prefix + "_lanes", out.connectivity_curves);
-    writeLaneEdges  (dir, prefix + "_laneedges", out.lane_edges);
-    writeAreas    (dir, prefix + "_areas", out.area);
 #ifdef PROJECT_ROOT_DIR
     std::string proj_dir = PROJECT_ROOT_DIR;
     std::cout << "PROJECT_ROOT_DIR : " << proj_dir << std::endl;
@@ -248,6 +245,9 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
         std::filesystem::copy_file(qgis_temp, dest_file,
             std::filesystem::copy_options::skip_existing);
 #endif
+    writeLanes(dir, prefix + "_lanes", out.connectivity_curves);
+    writeLaneEdges  (dir, prefix + "_laneedges", out.lane_edges);
+    writeAreas    (dir, prefix + "_areas", out.area);
     return true;
 }
 #endif //IODATA_SHAPEFILE_H

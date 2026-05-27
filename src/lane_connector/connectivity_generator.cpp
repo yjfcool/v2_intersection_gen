@@ -263,6 +263,13 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     cost.full_param_mode = (initial.numSegments() > 1);
 
     BezierCurve opt=optimiseCurve(cost,solver_,initial,4);
+#ifndef NDEBUG
+    // Print final curve for QGIS verification
+    std::cout << toWKT(genVectorline({p0[0],p0[1],0}, {t0[0],t0[1],0}, 1.0), conn.entry_lane_id) << std::endl;
+    std::cout << toWKT(genVectorline({p1[0],p1[1],0}, {t1[0],t1[1],0}, 1.0), conn.exit_lane_id) << std::endl;
+    std::cout << toWKT(toArray(opt.sample(50)), "optm_"+cc.id) << std::endl;
+#endif
+
     bool is_uturn = (conn.turn_type==TurnType::UTurnLeft||conn.turn_type==TurnType::UTurnRight);
     // Skip elasticBandSmooth for:
     // 1. U-turns (high curvature, elasticBand produces oscillations)
@@ -278,10 +285,10 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     // of any optimiser drift during the multi-segment optimisation.
     BezierCurve final_c=postProcess(opt,sdf,input.area.coarse_area,0.25,t0,t1,skip_band,&p0,&p1);
     cc.curve=final_c;
+#ifndef NDEBUG
     // Print final curve for QGIS verification
-    std::cout << toWKT(genVectorline({p0[0],p0[1],0}, {t0[0],t0[1],0}, 1.0), conn.entry_lane_id) << std::endl;
-    std::cout << toWKT(genVectorline({p1[0],p1[1],0}, {t1[0],t1[1],0}, 1.0), conn.exit_lane_id) << std::endl;
-    std::cout << toWKT(toArray(final_c.sample(50)), cc.id) << std::endl;
+    std::cout << toWKT(toArray(final_c.sample(50)), "post_"+cc.id) << std::endl;
+#endif
     validate(cc,input,sdf);
     if(pre.narrow_passage&&cc.status==CurveStatus::OK)cc.status=CurveStatus::WarnA2;
     return cc;
