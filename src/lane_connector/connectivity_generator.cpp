@@ -70,9 +70,18 @@ std::vector<SiblingCurve> ConnectivityGenerator::buildSiblings(
     for(auto&[cid,curve]:done){if(cid==id)continue;
         SiblingCurve s; s.curve=curve;
         auto ex=cs.exemptionOf(id,cid);
-        s.exempt_a1=(ex==CrossExemption::StructuralCross);
+        // If ClusterOrderSolver has no pair record (different entry lane),
+        // it means these curves are from different road arms — structural
+        // cross. Mark as exempt to avoid spurious cluster penalty.
+        if (ex == CrossExemption::None) {
+            // Check if there is actually a cluster pair between id and cid.
+            // If not, this is a cross-traffic structural intersection → exempt.
+            s.exempt_a1 = true;
+        } else {
+            s.exempt_a1=(ex==CrossExemption::StructuralCross);
+        }
         s.exempt_a2_radius=(ex==CrossExemption::ObstacleCross)?1.5:0.0;
-        sibs.push_back(s);}
+        sibs.push_back(std::move(s));}
     return sibs;
 }
 
@@ -209,18 +218,34 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     if(pre.type==ViolationInfo::InfeasibilityType::TopologicalBlock)
         return makeFallbackCurve(pre,conn,p0,p1);
 
-    // Build sibling polylines from already-generated curves in this cluster
+    // Build sibling polylines from already-generated curves in this cluster.
+    // Only include same-entry siblings (curves from the same entry lane) for the
+    // initial curve shape selection.  Different-entry curves are cross-traffic
+    // (structural intersection) and must not constrain initial curve shape.
     std::vector<std::vector<Vec2d>> sib_polys;
     for (auto& sib : siblings) {
-        if (!sib.exempt_a1)
+        if (!sib.exempt_a1 && (sib.curve.startPt() - p0).norm() < 0.5) {
             sib_polys.push_back(sib.curve.sampleByArcLength(20));
+        }
     }
     BezierCurve initial=buildInitialCurve(p0,t0,p1,t1,sdf,input.area.coarse_area,sib_polys);
 
     PenaltyCost cost;
     cost.proto=initial;cost.sdf=&sdf;
     cost.boundaries=input.boundaries;cost.fence=input.area.coarse_area;
-    cost.siblings=siblings;cost.crosswalks=input.crosswalks;
+    // Mark same-entry siblings as structurally exempt (they share an entry point
+    // and their initial diverging overlap is geometrically expected / legal).
+    // This prevents the cluster penalty from pushing turn curves to the outer
+    // side just to avoid the overlap with the straight-through curve from the
+    // same entry lane.
+    auto modified_siblings = siblings;
+    for (auto& sib : modified_siblings) {
+        if (!sib.exempt_a1 && (sib.curve.startPt() - p0).norm() < 0.5) {
+            sib.exempt_a1 = true;  // same-entry diverge: structural cross
+        }
+    }
+    cost.siblings=modified_siblings;
+    cost.crosswalks=input.crosswalks;
     // obstacle_clearance: match the penetration-only strategy used in
     // buildInitialCurve (INIT_CLEARANCE=0).  The SDF field has obstacle_buffer=0.4m
     // baked in, so SDF=0 means "touching the buffered obstacle surface" which

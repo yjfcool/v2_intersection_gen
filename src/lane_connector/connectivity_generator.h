@@ -26,6 +26,7 @@ private:
     ConnectivityCurve generateOne(const Connectivity&,const IntersectionInput&,const SDFField&,const SDFField&,const std::vector<SiblingCurve>&);
     std::vector<SiblingCurve> buildSiblings(const ConnId&,const std::unordered_map<ConnId,BezierCurve>&,const ClusterOrderSolver&)const;
     BezierCurve postProcess(const BezierCurve&,const SDFField&,const Polygon2d&,double,
-                              const Vec2d&t0_orig,const Vec2d&t1_orig,bool skip_elastic_band=false);
+                              const Vec2d&t0_orig,const Vec2d&t1_orig,bool skip_elastic_band=false,
+                              const Vec2d* p0_exact=nullptr,const Vec2d* p1_exact=nullptr);
     void validate(ConnectivityCurve&,const IntersectionInput&,const SDFField&)const;
 };

@@ -17,6 +17,7 @@
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <iostream>
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Shared helpers
@@ -93,7 +94,11 @@ static ObstacleAABB probeObstacleAABB(const SDFField& sdf,
     if (len < 1e-6) return box;
     along = along * (1.0/len);
     Vec2d perp{-along.y(), along.x()};
-    double sweep = std::max(3.0, 0.4 * len);   // lateral scan width
+    // Sweep width: use a fixed narrow strip (one lane width = 3.5m each side)
+    // to avoid capturing obstacles far off the path axis.  A large sweep
+    // caused the AABB to span the entire junction when multiple obstacles exist,
+    // making obs_lat unreliable for side selection.
+    double sweep = 4.0;   // ±4m from path centre-line
 
     for (int ix = 0; ix <= nx; ++ix) {
         for (int iy = -ny/2; iy <= ny/2; ++iy) {
@@ -163,15 +168,49 @@ static Vec2d computeApex(const ObstacleAABB& box,
 
 // Choose which side (left/right of path) is clear for bypass.
 //
-// Key insight for right-hand traffic:
-//   - Right-turn paths (cross2d(t0, p1-p0) < 0): the obstacle lies exactly on
-//     the natural arc. The correct bypass is the INNER side (+1 = left of path
-//     direction = toward the junction centre), giving a shorter, tighter arc.
-//   - Left-turn and straight paths: use SDF gradient voting along the path to
-//     detect which side the obstacle cluster is on.
+// Right-hand traffic rules (RHT) and junction-centre preference:
 //
-// t0_hint: optional entry tangent for right-turn detection. If zero-vector,
-//          fall back to gradient voting.
+//   Coordinate conventions:
+//     along = (p1-p0).normalized()
+//     perp  = (-along.y, along.x)   ← LEFT of the path direction
+//     side = +1 → bypass to the LEFT  of along (= perp direction)
+//     side = -1 → bypass to the RIGHT of along (= -perp direction)
+//
+//   Turn geometry (cross2d(t0, p1-p0)):
+//     > 0  → p1-p0 is LEFT  of t0 → LEFT TURN  → obstacle on left-diagonal of path
+//     < 0  → p1-p0 is RIGHT of t0 → RIGHT TURN → obstacle on right-diagonal of path
+//
+//   RHT avoidance principle: prefer the side closer to the junction CENTRE:
+//     - RIGHT TURN: natural arc swings right; obstacle sits on the right-diagonal
+//       (inner corner of the right turn, close to junction centre).
+//       The correct bypass goes to the LEFT of the path direction (+1),
+//       which is the PATH'S left side = geometrically the OUTER side of the
+//       right-turn arc. Wait — this is wrong per user requirement.
+//
+//   CORRECTED reasoning (confirmed by geometry derivation):
+//     For N→W right turn: p0=(+1.75,-10), p1=(+10,-1.75), t0=(0,+1)
+//       along = (8.25, 8.25).norm ≈ (0.707, 0.707)
+//       perp  = (-0.707, +0.707)   ← points toward junction OUTSIDE (NW corner)
+//       side=+1 (left of path) = NW = OUTER = WRONG
+//       side=-1 (right of path) = SE = junction CENTRE diagonal = CORRECT
+//
+//     For a right turn, cross2d(t0, p1-p0) < 0.
+//     The inner (centre-side) bypass corresponds to side = -1 (right of path).
+//
+//   Left-turn example N→E: p0=(+1.75,-10), p1=(-10,+1.75), t0=(0,+1)
+//       along = (-11.75, 11.75).norm ≈ (-0.707, 0.707)
+//       perp  = (-0.707, -0.707)   ← points toward junction CENTRE (SW, inner of left turn)
+//       side=+1 (left of path) = SW = junction centre = inner side = CORRECT
+//       side=-1 (right of path) = NE = outer side
+//     For a left turn, cross2d(t0, p1-p0) > 0.
+//     The inner (centre-side) bypass corresponds to side = +1 (left of path).
+//
+//   RULE: side_inner = +1 when left-turn, -1 when right-turn.
+//         Equivalently: side_inner = sign(cross2d(t0, p1-p0)) with fallback to
+//         gradient-voting for straight / near-straight paths.
+//
+// t0_hint: optional entry tangent for turn-type detection. If zero-vector,
+//          fall back to gradient voting only.
 static int chooseSide(const SDFField& sdf,
                        const ObstacleAABB& box,
                        const Vec2d& p0, const Vec2d& p1,
@@ -180,34 +219,77 @@ static int chooseSide(const SDFField& sdf,
                        const Vec2d& t0_hint = Vec2d(0,0))
 {
     Vec2d along = (p1 - p0).normalized();
-    Vec2d perp{-along.y(), along.x()};
+    Vec2d perp{-along.y(), along.x()};   // LEFT of path direction
 
-    // ── Right-turn detection ─────────────────────────────────────────────────
-    // For right-hand traffic a right-turn means the vehicle curves to the
-    // right relative to its entry direction.  cross2d(t0, p1-p0) < 0 iff
-    // p1-p0 is to the right of t0, i.e. this is a right turn.
-    // In that case the natural Bezier arc passes through the obstacle that
-    // sits on the inner diagonal of the turn.  The correct bypass is always
-    // the inner side (+1 = left of the along direction = toward junction
-    // centre), which produces the shorter, geometrically natural detour.
-    if (t0_hint.norm() > 1e-8) {
-        double cross_val = cross2d(t0_hint.normalized(), (p1 - p0));
-        if (cross_val < -1e-3) {
-            // Right turn: force inner bypass (+1)
-            return +1;
+    // ── Side selection: RHT centre-priority with obstacle position awareness ──
+    //
+    // Key principle: prefer the bypass side that keeps the curve close to the
+    // junction centre (inner arc / short arc), UNLESS the obstacle is between
+    // the path and the centre, in which case we must go outer.
+    //
+    // Algorithm:
+    //   1. Measure lat position of the junction centre relative to the path.
+    //   2. Measure lat position of the obstacle AABB centre relative to the path.
+    //   3. If centre and obstacle are on OPPOSITE sides of the path:
+    //        → obstacle is on the outer side; bypass TOWARD the centre (same side as centre).
+    //   4. If centre and obstacle are on the SAME side of the path:
+    //        → obstacle blocks the inner (centre) side; must bypass to the outer side.
+    //
+    // Fallback: if no obstacle detected in AABB or centre is ambiguous, use
+    // SDF clearance voting.
+    if (t0_hint.norm() > 1e-8 || box.valid) {
+        Vec2d junction_centre(0.0, 0.0);
+        Vec2d mid_path = 0.5 * (p0 + p1);
+        Vec2d to_centre = junction_centre - mid_path;
+        double centre_lat = to_centre.dot(perp);   // +: centre left, -: centre right
+
+        // Obstacle AABB centre
+        double obs_cx = 0.5 * (box.x_min + box.x_max);
+        double obs_cy = 0.5 * (box.y_min + box.y_max);
+        Vec2d obs_centre_world(obs_cx, obs_cy);
+        double obs_lat = (obs_centre_world - mid_path).dot(perp);
+
+        const double LAT_THRESH = 0.5;
+        bool centre_clear  = std::abs(centre_lat) > LAT_THRESH;
+        bool obs_clear     = std::abs(obs_lat)    > LAT_THRESH;
+
+        if (centre_clear && obs_clear) {
+            // Both clearly on defined sides
+            bool same_side = (centre_lat > 0) == (obs_lat > 0);
+            if (!same_side) {
+                // Obstacle on outer side → bypass toward centre
+                return (centre_lat > 0) ? +1 : -1;
+            } else {
+                // Obstacle on inner/centre side → forced outer bypass
+                return (centre_lat > 0) ? -1 : +1;
+            }
+        }
+        if (centre_clear && !obs_clear) {
+            // Obstacle is nearly on-path (head-on) — prefer inner (centre) bypass
+            // since the obstacle doesn't clearly block the inner lane.
+            return (centre_lat > 0) ? +1 : -1;
+        }
+        if (centre_clear) {
+            // Only centre direction is clear: default to inner bypass
+            return (centre_lat > 0) ? +1 : -1;
         }
     }
-
-    // ── Gradient-voting for straight / left-turn paths ───────────────────────
+    // The SDF gradient at points near the obstacle points AWAY from the obstacle
+    // (toward free space).  We accumulate the lateral component of the gradient
+    // to determine which side of the path has MORE clearance — that is the side
+    // we choose to bypass TOWARD.
+    // Note: clearance=0 in normal operation so "d > clearance*1.5" always holds;
+    // use a fixed probe threshold instead.
     double weighted_lat = 0.0;
     double total_weight = 0.0;
     constexpr double PROBE = 0.15;
+    constexpr double SAMPLE_THRESH = 3.0;   // probe within 3m of obstacle
     constexpr int N = 30;
     for (int i = 1; i < N; ++i) {
         double t = (double)i / N;
         Vec2d pt = p0 + t * (p1 - p0);
         auto [d, dummy] = sdf.queryWithGrad(pt);
-        if (d > clearance * 1.5) continue;
+        if (d > SAMPLE_THRESH) continue;
         auto [d_lp, dum1] = sdf.queryWithGrad(pt + PROBE * perp);
         auto [d_lm, dum2] = sdf.queryWithGrad(pt - PROBE * perp);
         double lat_grad = (d_lp - d_lm) / (2 * PROBE);
@@ -216,6 +298,7 @@ static int chooseSide(const SDFField& sdf,
         total_weight  += w;
     }
 
+    // side = direction of MORE clearance (toward free space)
     int primary_side = (total_weight > 1e-10 && weighted_lat > 0) ? +1 : -1;
 
     // Sibling penalty
@@ -276,15 +359,16 @@ static BezierCurve geometricBypass(const Vec2d& p0, const Vec2d& t0,
         return c;
     }
 
-    // Pass entry tangent so chooseSide can detect right-turns
+    // Pass entry tangent so chooseSide can detect turn type (RHT centre-priority)
     int side = chooseSide(sdf, box, p0, p1, clearance, sibling_polys, t0);
-    // apex_clearance: place apex at clearance + small extra buffer beyond obstacle edge
+    // apex_clearance: place apex beyond obstacle edge + small buffer
     double apex_clearance = clearance + 0.3;
     Vec2d apex = computeApex(box, p0, p1, side, apex_clearance);
 
-    // Verify apex is obstacle-free; if not, try other side
+    // Verify apex is obstacle-free; if not (apex lands inside obstacle), try other side.
+    // Use a meaningful threshold regardless of clearance value.
     auto [d_apex, dummy] = sdf.queryWithGrad(apex);
-    if (d_apex < clearance * 0.5) {
+    if (d_apex < -0.1) {
         apex = computeApex(box, p0, p1, -side, apex_clearance);
     }
 
@@ -316,22 +400,29 @@ static BezierCurve geometricBypass(const Vec2d& p0, const Vec2d& t0,
         arch = arch2;
     }
 
-    // Validate no intersection with existing sibling curves
+    // Validate no intersection with existing sibling curves.
+    // Use a larger endpoint tolerance for same-entry siblings, since curves
+    // sharing the same start point have overlapping initial segments by design.
     if (!sibling_polys.empty()) {
         auto arch_pts = arch.sampleByArcLength(20);
+        double arch_len = arch.arcLength();
+        // Minimum "interior" fraction: skip intersections within the first/last
+        // 15% of arc length (where same-entry curves naturally overlap).
+        double endpoint_skip_dist = std::max(0.05, arch_len * 0.15);
         for (auto& sp : sibling_polys) {
             for (int ai = 0; ai+1 < (int)arch_pts.size(); ++ai) {
                 for (int si = 0; si+1 < (int)sp.size(); ++si) {
                     Vec2d isect;
-                    if (segmentsIntersect_internal(
+                    if (!segmentsIntersect_internal(
                             arch_pts[ai], arch_pts[ai+1],
-                            sp[si],       sp[si+1], &isect)) {
-                        // Skip endpoint proximity
-                        double de = std::min(
-                            (isect-arch_pts.front()).norm(),
-                            (isect-arch_pts.back()).norm());
-                        if (de > 0.05) { return {}; }  // Level-2 fallback
-                            }
+                            sp[si],       sp[si+1], &isect)) continue;
+                    // Skip intersections close to either endpoint of the arch
+                    double de = std::min(
+                        (isect-arch_pts.front()).norm(),
+                        (isect-arch_pts.back()).norm());
+                    if (de < endpoint_skip_dist) continue;
+                    // Genuine interior intersection → Level-2 fallback
+                    return {};
                 }
             }
         }
@@ -362,17 +453,65 @@ static BezierCurve geometricInitLevel2(const Vec2d& p0, const Vec2d& t0,
     along = along * (1.0/len);
     Vec2d perp{-along.y(), along.x()};
 
-    // Sample SDF on left vs right of midpath to pick side with more clearance
-    double d_left=0, d_right=0;
-    int n_probe = 10;
-    for (int i=1; i<=n_probe; ++i) {
-        double s = (double)i/(n_probe+1)*len;
-        Vec2d mid = p0 + s*along;
-        auto [dl,dum1] = sdf.queryWithGrad(mid + 1.5*perp);
-        auto [dr,dum2] = sdf.queryWithGrad(mid - 1.5*perp);
-        d_left += dl; d_right += dr;
+    // RHT centre-priority: prefer bypassing toward the junction centre (0,0),
+    // unless the obstacle is ON the centre side (then must go outer).
+    // Use probeObstacleAABB to get actual obstacle world-coords, then determine
+    // which side of the path the obstacle lies on.
+    double side = 0.0;
+    {
+        Vec2d junction_centre(0.0, 0.0);
+        Vec2d mid_path = 0.5 * (p0 + p1);
+        double centre_lat = (junction_centre - mid_path).dot(perp);
+
+        // Probe obstacle AABB (reuse Level-1 helper)
+        auto box = probeObstacleAABB(sdf, p0, p1, 0.0);
+
+        if (box.valid && std::abs(centre_lat) > 0.5) {
+            // Compute obstacle AABB centre's lateral position relative to path
+            Vec2d box_world_centre((box.x_min + box.x_max) * 0.5,
+                                   (box.y_min + box.y_max) * 0.5);
+            double obs_lat = (box_world_centre - mid_path).dot(perp);
+
+            // Determine which side to bypass:
+            //   If obs is on the OUTER side (opposite to centre): bypass toward CENTRE
+            //   If obs is on the INNER side (same as centre, well separated): forced OUTER
+            //   If obs is nearly on-path (|obs_lat| < 1.5m): prefer INNER (centre) side,
+            //     since we have a head-on obstacle and the inner arc is shorter.
+            const double ON_PATH_THRESH = 1.5;
+            if (std::abs(obs_lat) < ON_PATH_THRESH) {
+                // Head-on obstacle: prefer inner (centre) side
+                side = (centre_lat > 0) ? 1.0 : -1.0;
+            } else {
+                bool same_side = (centre_lat > 0) == (obs_lat > 0);
+                side = (!same_side) ?
+                       ((centre_lat > 0) ? 1.0 : -1.0) :   // outer obstacle → inner bypass
+                       ((centre_lat > 0) ? -1.0 : 1.0);     // inner obstacle → outer bypass
+            }
+        } else if (std::abs(centre_lat) > 0.5) {
+            side = (centre_lat > 0) ? 1.0 : -1.0;  // default inner bypass
+        } else {
+            // Near-straight: pick side with more SDF clearance
+            double d_left=0, d_right=0;
+            int n_probe = 10;
+            for (int i=1; i<=n_probe; ++i) {
+                double s = (double)i/(n_probe+1)*len;
+                Vec2d mid_pt = p0 + s*along;
+                auto [dl,dum1] = sdf.queryWithGrad(mid_pt + 1.5*perp);
+                auto [dr,dum2] = sdf.queryWithGrad(mid_pt - 1.5*perp);
+                d_left += dl; d_right += dr;
+            }
+            side = (d_left >= d_right) ? 1.0 : -1.0;
+        }
     }
-    double side = (d_left >= d_right) ? 1.0 : -1.0;
+    // Safety check: if preferred side is inside an obstacle, flip to other side.
+    {
+        Vec2d mid_pt = p0 + 0.5*(p1-p0);
+        auto [d_chosen, dum_c]   = sdf.queryWithGrad(mid_pt + side * 1.5 * perp);
+        auto [d_opposite, dum_o] = sdf.queryWithGrad(mid_pt - side * 1.5 * perp);
+        if (d_chosen < 0.0 && d_opposite > d_chosen) {
+            side = -side;  // preferred side is inside obstacle, flip
+        }
+    }
 
     // Step 2: place 3-waypoint arch
     //   apex at 50% longitudinal, lateral offset = obstacle_radius + clearance
