@@ -1,0 +1,36 @@
+add_library(intersection_gen_lib STATIC
+    intersection_generator.cpp
+
+    curve/bezier.cpp
+    curve/hermite_init.cpp
+    curve/curve_utils.cpp
+
+    optimizer/sdf_field.cpp
+    optimizer/penalty_cost.cpp
+    optimizer/lbfgs_solver.cpp
+
+    constraints/infeasibility_detector.cpp
+    constraints/cluster_order.cpp
+    constraints/intersection_check.cpp
+    constraints/fence_check.cpp
+
+    lane_connector/connectivity_generator.cpp
+    lane_connector/lane_edge_generator.cpp
+
+    area_generator/fine_area.cpp
+)
+
+target_include_directories(intersection_gen_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+if(DEPENDS_EXISTS STREQUAL "TRUE")
+    target_link_libraries(intersection_gen_lib PUBLIC Clipper2)
+else ()
+    target_link_libraries(intersection_gen_lib PUBLIC Eigen3::Eigen Clipper2)
+endif ()
+
+target_compile_options(intersection_gen_lib PRIVATE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:MSVC>:/W3 /O2>
+)
