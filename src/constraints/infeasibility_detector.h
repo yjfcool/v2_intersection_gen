@@ -1,3 +1,9 @@
+/*
+ * 阶段3：InfeasibilityDetector (无解预检测 )
+ *  - BFS 可达性（C 类：拓扑死锁）
+ *  - 通道宽度检测（A 类：过窄）
+ *  - 围栏-障碍夹断检测（B 类）
+ */
 #pragma once
 #include "types.h"
 #include "optimizer/sdf_field.h"

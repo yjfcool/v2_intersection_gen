@@ -153,12 +153,36 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         ShapefileEngine::write(dir, fname, shpType, fields, records);
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
+    auto writeAreas = [&](const std::string& dir, const std::string& fname,
+        const IntersectionArea& inter_area){
+        std::vector<Polygon2d> areas = {inter_area.geometry};
+
+        std::filesystem::create_directories(dir);
+        std::vector<DbfField> fields = {
+            {"ID",       'C', 64, 0},
+            {"TYPE",'C', 64, 0},
+        };
+        int shpType = SHP_POLYGONZ;
+        std::vector<ShapeRecord> records = {};
+        for (int i = 0; i < areas.size(); ++i) {
+            const auto& pg = areas[i];
+            std::vector<std::string> attrs = {std::to_string(i), "-1"};//std::to_string(pg.type)
+            std::vector<ShapePoint> points = toArray(pg.outer);
+            ShapeRecord record = {
+                i, shpType, attrs, points, {0}
+            };
+            records.emplace_back(record);
+        }
+        ShapefileEngine::write(dir, fname, shpType, fields, records);
+        //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
+    };
     writeLanes(dir, prefix + "_lanes", inp.lanes);
     writeLaneEdges(dir, prefix + "_laneedges", inp.lane_edges);
     writeStopLines(dir, prefix + "_stoplines", inp.stop_lines);
     writeRoadEdges(dir, prefix + "_roadedges", inp.boundaries);
     writeObstacles(dir, prefix + "_obstacles", inp.obstacles);
     writeCrosswalks(dir, prefix + "_crosswalks", inp.crosswalks);
+    writeAreas(dir, prefix + "_areas", inp.area);
     return true;
 }
 
@@ -189,7 +213,7 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeLaneEdges = [&](const std::string& dir, const std::string& fname,
-        const std::vector<LaneEdge>& edgelines){
+        const std::vector<ConnectivityLaneEdge>& edgelines){
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
             {"ID",       'C', 64, 0},
@@ -214,7 +238,7 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
     };
     auto writeAreas = [&](const std::string& dir, const std::string& fname,
         const IntersectionArea& inter_area){
-        std::vector<Polygon2d> areas = {inter_area.fine_area, inter_area.coarse_area};
+        std::vector<Polygon2d> areas = {inter_area.geometry};
 
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {

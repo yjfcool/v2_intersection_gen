@@ -1,12 +1,16 @@
 #include "intersection_generator.h"
-#include "lane_connector/connectivity_generator.h"
-#include "lane_connector/lane_edge_generator.h"
-#include "area_generator/fine_area.h"
+#include "utils.h"
+#include "generator/connectivity_generator.h"
 #include "constraints/fence_check.h"
 #include "constraints/infeasibility_detector.h"
 #include "curve/curve_utils.h"
 #include <chrono>
 #include <cmath>
+
+#include "generator/lane_edge_generator.h"
+#include "generator/fine_area_generator.h"
+#include "generator/edge_line_generator.h"
+#include "generator/polygon_builder.h"
 
 IntersectionGenerator::IntersectionGenerator():cfg_{}{}
 IntersectionGenerator::IntersectionGenerator(const Config&cfg):cfg_(cfg){}
@@ -33,7 +37,7 @@ ValidationReport validateTopology(const IntersectionInput&input){
         if(std::abs((int)conn.turn_type-(int)inf)>1)
             r.warnings.push_back("Connectivity "+conn.id+": declared="+turnTypeName(conn.turn_type)
                 +" geometry="+turnTypeName(inf));}
-    if(!input.area.coarse_area.outer.empty()&&!isSimplePolygon(input.area.coarse_area))
+    if(!input.area.geometry.outer.empty()&&!isSimplePolygon(input.area.geometry))
         r.errors.push_back("Coarse intersection area is self-intersecting");
     for(auto&sl:input.stop_lines)
         if(!sl.associated_group_id.empty()&&!input.laneGroupExists(sl.associated_group_id))
@@ -47,7 +51,7 @@ bool IntersectionGenerator::generate(const IntersectionInput&input,IntersectionO
     auto t0=std::chrono::steady_clock::now();
     SDFField sdf;
     BoundingBox2d roi;
-    if(!input.area.coarse_area.outer.empty())roi=input.area.coarse_area.bbox();
+    if(!input.area.geometry.outer.empty())roi=input.area.geometry.bbox();
     else{
         for(auto&l:input.lanes)
             for(auto&p:l.geometry.points)roi.expand(p);
@@ -63,15 +67,14 @@ bool IntersectionGenerator::generate(const IntersectionInput&input,IntersectionO
     output.perf.optimize_ms=opt_ms;
 
     auto te=std::chrono::steady_clock::now();
-    LaneEdgeGenerator egen;
-    output.lane_edges=egen.generate(input,output.connectivity_curves,sdf);
+    // LaneEdgeGenerator egen; output.lane_edges=egen.generate(input,output.connectivity_curves,sdf);
+    EdgeLineGenerator elgen; output.lane_edges=elgen.generate(input, output.connectivity_curves);
     output.perf.edge_gen_ms=
         std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-te).count();
 
     auto ta=std::chrono::steady_clock::now();
-    FineAreaGenerator agen;
-    output.area.coarse_area=input.area.coarse_area;
-    output.area.fine_area=agen.generate(input,output.connectivity_curves);
+    // FineAreaGenerator agen; output.area.coarse_area=input.area.coarse_area; output.area.fine_area=agen.generate(input,output.connectivity_curves);
+    IntersectionAreaBuilder areabuilder; output.area=areabuilder.build(input, output.connectivity_curves, output.lane_edges);
     output.perf.area_gen_ms=
         std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-ta).count();
     return true;}

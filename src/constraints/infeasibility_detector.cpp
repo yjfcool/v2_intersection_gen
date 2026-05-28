@@ -2,6 +2,7 @@
 #include "fence_check.h"
 #include "curve/bezier.h"
 #include "curve/curve_utils.h"
+#include "utils.h"
 #include <clipper2/clipper.h>
 #include <queue>
 #include <unordered_set>

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <map>
 #include <unordered_map>
 #include <functional>
 #include <cmath>
@@ -44,14 +45,48 @@ struct Polygon2d {
 
 // ── Bézier types (defined here to avoid circular deps) ───────
 struct BezierSegment {
-    std::array<Vec2d,4> ctrl;
+    std::array<Vec2d, 4> ctrl;
+    // B(t) 求值
     Vec2d  evaluate(double t)const;
+
     Vec2d  tangent (double t)const;
+
+    // 曲率 κ(t) = |B'×B''| / |B'|³
     double curvature(double t)const;
+
     std::pair<BezierSegment,BezierSegment> splitAt(double t)const;
+
     BoundingBox2d bbox()const;
+
+    // 弧长（数值积分 - 辛普森法）
     double arcLength(int samples=20)const;
+
     double arcLengthToParam(double s,int samples=50)const;
+
+    // B'(t) 一阶导数
+    Vec2d evalDeriv1(double t) const;
+
+    // B''(t) 二阶导数
+    Vec2d evalDeriv2(double t) const;
+
+    // 最大曲率（采样估算）
+    double maxCurvature(int samples = 50) const;
+
+    // 固定数量采样
+    std::vector<Vec2d> sampleCount(int n) const;
+
+    // 固定间距采样（弧长近似）
+    std::vector<Vec2d> sampleBySpacing(double spacing) const;
+
+    // 自适应采样（基于角度误差）
+    std::vector<Vec2d> sampleAdaptive(double maxAngleDeg, double maxSeg, double minSeg) const;
+    void subdivide(double t0, double t1, double maxAngle, double maxSeg, double minSeg,
+               std::vector<Vec2d>& pts, int depth) const;
+
+    // 获取 α（P1相对P0的标量，T0方向）
+    double getAlpha(const Vec2d& T0) const;
+
+    double getBeta(const Vec2d& T3) const;
 };
 
 struct BezierCurve {
@@ -76,21 +111,34 @@ using LaneId      = std::string;
 using LaneGroupId = std::string;
 using LaneEdgeId  = std::string;
 using ConnId      = std::string;
+using InterId     = std::string;
+using AttrMap = std::map<std::string, std::string>;
 
 struct LaneEdge {
     LaneEdgeId   id;
     LineString2d geometry;
     bool         is_shared=false;
     std::optional<std::pair<LaneId,LaneId>> shared_by;
+
+    AttrMap attrs;
+    // Vec2d connectionPt;
+    // Vec2d tangentDir;
+    std::string groupId;
+    int lineOrder = 0; // 组内横向排序（0=最内侧）
 };
 
 struct Lane {
-    LaneId       id;
-    LaneEdgeId   left_edge_id,right_edge_id;
-    double       width=3.5;
-    LineString2d geometry;   // ordered pts from outside → intersection edge (entry)
-                             // or intersection edge → outside (exit)
-                             // endpoint & tangent are computed from this geometry
+    LaneId id;
+    LaneEdgeId left_edge_id;
+    LaneEdgeId right_edge_id;
+    double width = 3.5;
+    LineString2d geometry;
+
+    AttrMap attrs;
+    // Vec2d connectionPt; // 连接点坐标
+    // Vec2d tangentDir; // 连接点切线（指向路口内侧）
+    std::string groupId;
+    int laneOrder = 0; // 组内横向排序（0=最内侧）
 };
 
 enum class GroupRole{Entry,Exit};
@@ -104,6 +152,9 @@ struct LaneGroup {
     // NOT used by curve generation — all endpoints & tangents come from
     // Lane::geometry directly.
     //Vec2d direction{1,0},ref_point{0,0};
+
+    // added fields;
+    AttrMap attrs;
 };
 
 enum class TurnType{UTurnLeft=0,TurnLeft,Straight,TurnRight,UTurnRight};
@@ -126,9 +177,15 @@ struct Connectivity{
     LaneId entry_lane_id,exit_lane_id;
     TurnType turn_type=TurnType::Straight;
     DivergeMergeInfo dm_info;
+
+    LaneGroupId enterGroupId;
+    LaneGroupId exitGroupId;
 };
 
-struct Obstacle{std::string id;Polygon2d geometry,buffered_geometry;};
+struct Obstacle {
+    std::string id;
+    Polygon2d geometry, buffered_geometry;
+};
 
 enum class BoundaryType{RoadEdge,MedianStrip,GreenBelt,Other};
 
@@ -139,17 +196,24 @@ struct Boundary{
 };
 
 struct StopLine{
-    std::string id;LineString2d geometry;
+    std::string id;
+    LineString2d geometry;
     LaneGroupId associated_group_id;
     Vec2d normal_direction{0,1};
 };
 
 struct Crosswalk{
-    std::string id;Polygon2d geometry;
+    std::string id;
+    Polygon2d geometry;
     Vec2d crossing_direction{0,1};
 };
 
-struct IntersectionArea{Polygon2d coarse_area,fine_area;};
+// 路口面
+struct IntersectionArea {
+    InterId id;
+    Polygon2d geometry;
+    bool is_rough; //true:粗糙路口面，false:精细路口面
+};
 
 enum class CurveStatus{OK,WarnA2,Degraded,Infeasible};
 
@@ -162,17 +226,36 @@ struct ViolationInfo{
 };
 
 struct ConnectivityCurve{
-    ConnId id;LaneId entry_lane_id,exit_lane_id;
+    ConnId id;
+    LaneId entry_lane_id;
+    LaneId exit_lane_id;
     TurnType turn_type=TurnType::Straight;
     std::optional<BezierCurve> curve;   // BezierCurve is complete above
     CurveStatus status=CurveStatus::OK;
     ViolationInfo violation;
+
+    LaneEdgeId left_edge_id = "";
+    LaneEdgeId right_edge_id = "";
 };
 
+struct ConnectivityLaneEdge {
+    LaneEdgeId id;
+    LineString2d geometry;
+    bool is_shared = false;
+    std::optional<std::pair<LaneId, LaneId>> shared_by;//边线左侧车道，边线右侧车道
+
+    AttrMap attrs;
+    // Vec2d connectionPt;
+    // Vec2d tangentDir;
+    std::string groupId;
+    int lineOrder = 0; // 组内横向排序（0=最内侧）
+};
+
+
 struct IntersectionOutput{
-    std::vector<ConnectivityCurve> connectivity_curves;
-    std::vector<LaneEdge>          lane_edges;
-    IntersectionArea               area;
+    std::vector<ConnectivityCurve>      connectivity_curves;
+    std::vector<ConnectivityLaneEdge>   lane_edges;
+    IntersectionArea                    area;
     struct PerfStats{
         double sdf_build_ms=0,precheck_ms=0,optimize_ms=0,
                smooth_ms=0,edge_gen_ms=0,area_gen_ms=0;
@@ -214,6 +297,11 @@ struct IntersectionInput{
     std::vector<StopLine>     stop_lines;
     std::vector<Crosswalk>    crosswalks;
     IntersectionArea          area;
+
+    std::string id; //路口ID
+
+    const bool IsEntryLaneEdge(const LaneEdgeId& id) const;
+    const bool IsEntryLane(const LaneId& id) const;
     const Lane*      findLane (const LaneId&)const;
     const LaneGroup* findGroup(const LaneGroupId&)const;
     const LaneEdge*  findEdge (const LaneEdgeId&)const;
@@ -222,12 +310,9 @@ struct IntersectionInput{
     std::pair<Vec2d,Vec2d> exitPtDir (const LaneId&)const;
 };
 
-// ── Inline math helpers ──────────────────────────────────────
-inline double cross2d(const Vec2d&a,const Vec2d&b){return a[0]*b[1]-a[1]*b[0];}
-inline double angleBetween(const Vec2d&a,const Vec2d&b){
-    double c=a.normalized().dot(b.normalized());
-    return std::acos(std::max(-1.0,std::min(1.0,c)));}
-
 // ── AdaptiveRefineResult forward-declared here ───────────────
 struct SDFField; // forward
-struct AdaptiveRefineResult{BezierCurve curve;bool was_split=false;};
+struct AdaptiveRefineResult {
+    BezierCurve curve;
+    bool was_split = false;
+};

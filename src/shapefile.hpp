@@ -303,11 +303,15 @@ public:
                 for (auto& rec : records) calculateRecordBox(rec);
 
                 // 初始化全局全空间外包络
-                globalBox[0] = globalBox[2] = records[0].points[0][0];
-                globalBox[1] = globalBox[3] = records[0].points[0][1];
-                globalZBox[0] = globalZBox[1] = records[0].points[0][2];
+                bool inited = false;
                 for (const auto& rec : records) {
                     for (const auto& p : rec.points) {
+                        if (!inited) {
+                            globalBox[0] = globalBox[2] = p[0];
+                            globalBox[1] = globalBox[3] = p[1];
+                            globalZBox[0] = globalZBox[1] = p[2];
+                            inited = true;
+                        }
                         if (p[0] < globalBox[0]) globalBox[0] = p[0];
                         if (p[1] < globalBox[1]) globalBox[1] = p[1];
                         if (p[0] > globalBox[2]) globalBox[2] = p[0];

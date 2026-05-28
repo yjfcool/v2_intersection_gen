@@ -19,27 +19,27 @@ const BezierCurve* LaneEdgeGenerator::curveForLane(const LaneId&lid,const std::v
     return nullptr;
 }
 
-LaneEdge LaneEdgeGenerator::makeSharedEdge(const LaneEdgeId&eid,const BezierCurve&a,const BezierCurve&b,
+ConnectivityLaneEdge LaneEdgeGenerator::makeSharedEdge(const LaneEdgeId&eid,const BezierCurve&a,const BezierCurve&b,
     const Vec2d&et,const Vec2d&xt,bool shared)
 {
     auto mid=midlineSampleByArcLength(a,b,20);
     auto ec=fitBezierWithEndTangents(mid,et,xt);
-    LaneEdge e; e.id=eid; e.is_shared=shared;
+    ConnectivityLaneEdge e; e.id=eid; e.is_shared=shared;
     e.geometry.points=ec.sampleByArcLength(30);
     return e;
 }
 
-LaneEdge LaneEdgeGenerator::makeOffsetEdge(const LaneEdgeId&eid,const BezierCurve&c,double off,const Vec2d&,const Vec2d&){
+ConnectivityLaneEdge LaneEdgeGenerator::makeOffsetEdge(const LaneEdgeId&eid,const BezierCurve&c,double off,const Vec2d&,const Vec2d&){
     auto pts=c.sampleByArcLength(30);
-    LaneEdge e; e.id=eid; e.is_shared=false;
+    ConnectivityLaneEdge e; e.id=eid; e.is_shared=false;
     e.geometry.points=offsetPL(pts,off);
     return e;
 }
 
-std::vector<LaneEdge> LaneEdgeGenerator::generate(
+std::vector<ConnectivityLaneEdge> LaneEdgeGenerator::generate(
     const IntersectionInput&input,const std::vector<ConnectivityCurve>&ccs,const SDFField&)
 {
-    std::vector<LaneEdge>result;
+    std::vector<ConnectivityLaneEdge>result;
     for(auto&group:input.lane_groups){
         if(group.lanes.empty())continue;
         int N=(int)group.lanes.size();

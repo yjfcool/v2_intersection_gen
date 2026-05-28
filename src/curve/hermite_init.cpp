@@ -14,6 +14,7 @@
 #include "hermite_init.h"
 #include "optimizer/sdf_field.h"
 #include "constraints/fence_check.h"
+#include "utils.h"
 #include <cmath>
 #include <algorithm>
 #include <limits>

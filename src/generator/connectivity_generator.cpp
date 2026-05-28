@@ -13,6 +13,31 @@
 #include "shapefile.hpp"
 
 // ── IntersectionInput helpers ─────────────────────────────────
+
+const bool IntersectionInput::IsEntryLane(const LaneId& id) const {
+    for (auto lg : lane_groups) {
+        if (std::find(lg.lanes.begin(), lg.lanes.end(), id) != lg.lanes.end()) {
+            return lg.role == GroupRole::Entry;
+        }
+    }
+    return false;
+}
+const bool IntersectionInput::IsEntryLaneEdge(const LaneEdgeId& id) const {
+    for (auto lg : lane_groups) {
+        if (std::find(lg.boundaries.begin(), lg.boundaries.end(), id) != lg.boundaries.end()) {
+            return lg.role == GroupRole::Entry;
+        }
+    }
+    for (auto lg : lane_groups) {
+        for (auto lid : lg.lanes) {
+            auto lane = findLane(lid);
+            if (lane && (lane->left_edge_id == id || lane->right_edge_id==id))
+                return lg.role == GroupRole::Entry;
+        }
+    }
+    return false;
+}
+
 const Lane* IntersectionInput::findLane(const LaneId&id)const{for(auto&l:lanes)if(l.id==id)return&l;return nullptr;}
 const LaneGroup* IntersectionInput::findGroup(const LaneGroupId&id)const{for(auto&g:lane_groups)if(g.id==id)return&g;return nullptr;}
 const LaneEdge* IntersectionInput::findEdge(const LaneEdgeId&id)const{for(auto&e:lane_edges)if(e.id==id)return&e;return nullptr;}
@@ -184,11 +209,11 @@ void ConnectivityGenerator::validate(ConnectivityCurve&cc,const IntersectionInpu
     auto&c=*cc.curve;
     double ms=minSDFAlongCurve(c,sdf,20);
     cc.violation.max_obstacle_penetration=std::max(0.0,-ms);
-    if(!input.area.coarse_area.outer.empty()){
+    if(!input.area.geometry.outer.empty()){
         double ov=0;
         for(auto&pt:c.sampleByArcLength(30))
-            if(!polygonContains(input.area.coarse_area,pt))
-                ov=std::max(ov,pointToPolygonDist(pt,input.area.coarse_area));
+            if(!polygonContains(input.area.geometry,pt))
+                ov=std::max(ov,pointToPolygonDist(pt,input.area.geometry));
         cc.violation.max_fence_overflow=ov;
     }
     if(cc.violation.max_obstacle_penetration>0.05){
@@ -214,7 +239,7 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     double lw=3.5;
     if(auto*l=input.findLane(conn.entry_lane_id))lw=l->width;
 
-    auto pre=preCheck(sdf_coarse,input.area.coarse_area,p0,p1,lw,input.boundaries);
+    auto pre=preCheck(sdf_coarse,input.area.geometry,p0,p1,lw,input.boundaries);
     if(pre.type==ViolationInfo::InfeasibilityType::TopologicalBlock)
         return makeFallbackCurve(pre,conn,p0,p1);
 
@@ -228,11 +253,11 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
             sib_polys.push_back(sib.curve.sampleByArcLength(20));
         }
     }
-    BezierCurve initial=buildInitialCurve(p0,t0,p1,t1,sdf,input.area.coarse_area,sib_polys);
+    BezierCurve initial=buildInitialCurve(p0,t0,p1,t1,sdf,input.area.geometry,sib_polys);
 
     PenaltyCost cost;
     cost.proto=initial;cost.sdf=&sdf;
-    cost.boundaries=input.boundaries;cost.fence=input.area.coarse_area;
+    cost.boundaries=input.boundaries;cost.fence=input.area.geometry;
     // Mark same-entry siblings as structurally exempt (they share an entry point
     // and their initial diverging overlap is geometrically expected / legal).
     // This prevents the cluster penalty from pushing turn curves to the outer
@@ -283,7 +308,7 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     bool skip_band = true;  // always skip: preserve G1, rely on optimizer
     // Pass exact lane endpoint positions to guarantee G1 continuity regardless
     // of any optimiser drift during the multi-segment optimisation.
-    BezierCurve final_c=postProcess(opt,sdf,input.area.coarse_area,0.25,t0,t1,skip_band,&p0,&p1);
+    BezierCurve final_c=postProcess(opt,sdf,input.area.geometry,0.25,t0,t1,skip_band,&p0,&p1);
     cc.curve=final_c;
 #ifndef NDEBUG
     // Print final curve for QGIS verification
@@ -300,7 +325,7 @@ std::vector<ConnectivityCurve> ConnectivityGenerator::generate(
     auto t0=std::chrono::steady_clock::now();
 
     SDFField sdf_coarse;
-    auto roi=input.area.coarse_area.empty()?BoundingBox2d{}:input.area.coarse_area.bbox();
+    auto roi=input.area.geometry.empty()?BoundingBox2d{}:input.area.geometry.bbox();
     if(roi.width()<1){
         for(auto&l:input.lanes)
             for(auto&p:l.geometry.points)roi.expand(p);

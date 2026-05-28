@@ -135,7 +135,7 @@ inline void addConn(IntersectionInput& inp,
 inline void addStandardArea(IntersectionInput& inp, double half = 12.0) {
     Polygon2d fence;
     fence.outer = { {-half,-half},{half,-half},{half,half},{-half,half} };
-    inp.area.coarse_area = fence;
+    inp.area.geometry = fence;
 }
 inline void addRoadEdgeBoundary(IntersectionInput& inp,
                                  const std::string& id,

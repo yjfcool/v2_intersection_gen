@@ -1,6 +1,7 @@
 #include "curve_utils.h"
 #include "optimizer/sdf_field.h"
 #include "constraints/fence_check.h"
+#include "utils.h"
 #include <cmath>
 #include <algorithm>
 double localCurvature(const Vec2d&a,const Vec2d&b,const Vec2d&c){

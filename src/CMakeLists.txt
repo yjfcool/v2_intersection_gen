@@ -14,10 +14,11 @@ add_library(intersection_gen_lib STATIC
     constraints/intersection_check.cpp
     constraints/fence_check.cpp
 
-    lane_connector/connectivity_generator.cpp
-    lane_connector/lane_edge_generator.cpp
-
-    area_generator/fine_area.cpp
+        generator/connectivity_generator.cpp
+        generator/lane_edge_generator.cpp
+        generator/fine_area_generator.cpp
+        generator/polygon_builder.h
+        generator/edge_line_generator.h
 )
 
 target_include_directories(intersection_gen_lib PUBLIC

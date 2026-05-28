@@ -1,6 +1,7 @@
-#include "fine_area.h"
+#include "fine_area_generator.h"
 #include "constraints/fence_check.h"
 #include "curve/curve_utils.h"
+#include "utils.h"
 #include <algorithm>
 #include <cmath>
 
@@ -69,8 +70,8 @@ Polygon2d FineAreaGenerator::generate(const IntersectionInput&input,const std::v
     std::vector<Vec2d>endpoints;
     for(auto&cc:ccs){if(!cc.curve)continue;endpoints.push_back(cc.curve->startPt());endpoints.push_back(cc.curve->endPt());}
     if(road_edges.empty()){
-        if(endpoints.empty())return input.area.coarse_area;
-        auto pts=input.area.coarse_area.outer;pts.insert(pts.end(),endpoints.begin(),endpoints.end());
+        if(endpoints.empty())return input.area.geometry;
+        auto pts=input.area.geometry.outer;pts.insert(pts.end(),endpoints.begin(),endpoints.end());
         return convexHull(pts);}
     auto sorted=sortEdges(road_edges,0.1);
     auto bpts=collectBoundaryPts(sorted);

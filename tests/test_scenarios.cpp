@@ -52,7 +52,7 @@ static bool curveAvoidsPenetration(const ConnectivityCurve& cc,
 {
     if (!cc.curve) return true;
     SDFField sdf;
-    auto roi = inp.area.coarse_area.bbox();
+    auto roi = inp.area.geometry.bbox();
     if (roi.empty()) return true;
     sdf.build(roi, inp.obstacles, 0.2, 0.0);
     for (auto& pt : cc.curve->sampleByArcLength(50)) {

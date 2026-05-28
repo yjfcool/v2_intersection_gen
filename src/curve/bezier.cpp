@@ -1,5 +1,6 @@
 #include "bezier.h"
 #include "optimizer/sdf_field.h"
+#include "utils.h"
 #include <cmath>
 #include <cassert>
 #include <algorithm>
@@ -46,6 +47,99 @@ double BezierSegment::arcLengthToParam(double s,int samp)const{
         acc+=sl;prev=cur;}
     return 1.0;
 }
+
+// B'(t) 一阶导数
+Vec2d BezierSegment::evalDeriv1(double t) const {
+    double u = 1.0 - t;
+    return (ctrl[1] - ctrl[0]) * (3 * u * u) + (ctrl[2] - ctrl[1]) * (6 * u * t) + (ctrl[3] - ctrl[2]) * (3 * t *
+        t);
+}
+
+// B''(t) 二阶导数
+Vec2d BezierSegment::evalDeriv2(double t) const {
+    return (ctrl[2] - ctrl[1] * 2.0 + ctrl[0]) * (6 * (1 - t)) + (ctrl[3] - ctrl[2] * 2.0 + ctrl[1]) * (6 * t);
+}
+
+// 最大曲率（采样估算）
+double BezierSegment::maxCurvature(int samples) const {
+    double maxK = 0;
+    for (int i = 0; i <= samples; ++i) {
+        maxK = std::max(maxK, curvature(i * 1.0 / samples));
+    }
+    return maxK;
+}
+
+// 固定数量采样
+std::vector<Vec2d> BezierSegment::sampleCount(int n) const {
+    std::vector<Vec2d> pts(n + 1); //pts.reserve(n+1);
+    for (int i = 0; i <= n; ++i)
+        pts.push_back(evaluate(i * 1.0 / n));
+    return pts;
+}
+
+// 固定间距采样（弧长近似）
+std::vector<Vec2d> BezierSegment::sampleBySpacing(double spacing) const {
+    // 先粗采样，再按间距重采样
+    std::vector<Vec2d> dense = sampleCount(200);
+    return resampleBySpacing(dense, spacing);
+}
+
+void BezierSegment::subdivide(double t0, double t1, double maxAngle, double maxSeg, double minSeg,
+               std::vector<Vec2d>& pts, int depth) const {
+    if (depth > 20) {
+        pts.push_back(evaluate(t1));
+        return;
+    }
+    Vec2d p0 = evaluate(t0);
+    Vec2d p1 = evaluate(t1);
+    double segLen = dist(p0, p1);
+    if (segLen < minSeg) {
+        pts.push_back(p1);
+        return;
+    }
+    double tMid = 0.5 * (t0 + t1);
+    Vec2d pMid = evaluate(tMid);
+
+    // 检查角度误差
+    Vec2d d01 = (pMid - p0).normalized();
+    Vec2d d12 = (p1 - pMid).normalized();
+    double angle = std::acos(std::max(-1.0, std::min(1.0, d01.dot(d12))));
+    bool needSplit = (angle > maxAngle) || (segLen > maxSeg);
+    if (!needSplit) {
+        pts.push_back(p1);
+    } else {
+        subdivide(t0, tMid, maxAngle, maxSeg, minSeg, pts, depth + 1);
+        subdivide(tMid, t1, maxAngle, maxSeg, minSeg, pts, depth + 1);
+    }
+};
+// 自适应采样（基于角度误差）
+std::vector<Vec2d> BezierSegment::sampleAdaptive(double maxAngleDeg, double maxSeg, double minSeg) const {
+    double maxAngleRad = maxAngleDeg * DEG2RAD;
+    std::vector<Vec2d> pts;
+    pts.push_back(ctrl[0]);
+    subdivide(0.0, 1.0, maxAngleRad, maxSeg, minSeg, pts, 0);
+    // 确保端点精确
+    if (pts.empty() || dist(pts.back(), ctrl[3]) > EPS)
+        pts.push_back(ctrl[3]);
+    return pts;
+}
+
+// 获取 α（P1相对P0的标量，T0方向）
+double BezierSegment::getAlpha(const Vec2d& T0) const {
+    double d = dist(ctrl[0], ctrl[3]);
+    if (d < EPS)
+        return 0.35;
+    return (ctrl[1] - ctrl[0]).dot(T0) / d;
+}
+
+double BezierSegment::getBeta(const Vec2d& T3) const {
+    double d = dist(ctrl[0], ctrl[3]);
+    if (d < EPS)
+        return 0.35;
+    // P2 = P3 + T3*beta*d → beta = (P2-P3)·T3 / d
+    return (ctrl[2] - ctrl[3]).dot(T3.normalized()) / d;
+}
+
 
 Vec2d BezierCurve::startPt()const{return segs.front().ctrl[0];}
 Vec2d BezierCurve::endPt()  const{return segs.back().ctrl[3];}
