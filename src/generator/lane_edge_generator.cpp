@@ -1,5 +1,6 @@
 #include "lane_edge_generator.h"
 #include "curve/curve_utils.h"
+#include "utils.h"
 
 static std::vector<Vec2d> offsetPL(const std::vector<Vec2d>&pts,double off){
     std::vector<Vec2d>out; out.reserve(pts.size()); int n=(int)pts.size();
@@ -57,9 +58,9 @@ std::vector<ConnectivityLaneEdge> LaneEdgeGenerator::generate(
                 if(!ln||ln->geometry.points.empty())
                     return{{1,0},{1,0}};//{group.direction,group.direction};
                 if(group.role==GroupRole::Entry)
-                    return{laneEntryTangent(ln->geometry),laneEntryTangent(ln->geometry)};
+                    return{entryLineTangent(ln->geometry.points),entryLineTangent(ln->geometry.points)};
                 else
-                    return{laneExitTangent(ln->geometry),laneExitTangent(ln->geometry)};
+                    return{exitLineTangent(ln->geometry.points),exitLineTangent(ln->geometry.points)};
             };
             // Use average of adjacent lane tangents for shared boundaries
             auto[et_l,dummy_l]=getLaneTangents(b>0?b-1:b);

@@ -11,7 +11,7 @@
 #include <iostream>
 #include <filesystem>
 #include "shapefile.hpp"
-#include "types.h"
+#include "../src/types.h"
 
 inline std::vector<ShapePoint> toArray(const std::vector<Vec2d>& points) {
     std::vector<ShapePoint> shppoints;
@@ -23,13 +23,13 @@ inline std::vector<ShapePoint> toArray(const std::vector<Vec2d>& points) {
 
 static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
     auto writeLanes = [&](const std::string& dir, const std::string& fname,
-        const std::vector<Lane>& lanes) {
+                          const std::vector<Lane>& lanes) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"LANE_ORDER",  'C', 64, 0},
-            {"GROUP_ID",'C', 64, 0},
-            {"GROUP_TYPE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"LANE_ORDER", 'C', 64, 0},
+            {"GROUP_ID", 'C', 64, 0},
+            {"GROUP_TYPE", 'C', 64, 0},
         };
         int shpType = SHP_POLYLINEZ;
         std::vector<ShapeRecord> records = {};
@@ -46,14 +46,14 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeLaneEdges = [&](const std::string& dir, const std::string& fname,
-        const std::vector<LaneEdge>& edgelines){
+                              const std::vector<LaneEdge>& edgelines) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"GROUP_ID",'C', 64, 0},
-            {"GROUP_TYPE",'C', 64, 0},
-            {"LEFT_CLINE_ID",'C', 64, 0},
-            {"RIGHT_CLINE_ID",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"GROUP_ID", 'C', 64, 0},
+            {"GROUP_TYPE", 'C', 64, 0},
+            {"LEFT_CLINE_ID", 'C', 64, 0},
+            {"RIGHT_CLINE_ID", 'C', 64, 0},
         };
         int shpType = SHP_POLYLINEZ;
         std::vector<ShapeRecord> records = {};
@@ -70,11 +70,11 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeStopLines = [&](const std::string& dir, const std::string& fname,
-        const std::vector<StopLine>& stoplines){
+                              const std::vector<StopLine>& stoplines) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"ENTRY_GROUP_ID",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"ENTRY_GROUP_ID", 'C', 64, 0},
         };
         int shpType = SHP_POLYLINEZ;
         std::vector<ShapeRecord> records = {};
@@ -91,11 +91,11 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeRoadEdges = [&](const std::string& dir, const std::string& fname,
-        const std::vector<Boundary>& boundaries){
+                              const std::vector<Boundary>& boundaries) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"TYPE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"TYPE", 'C', 64, 0},
         };
         int shpType = SHP_POLYLINEZ;
         std::vector<ShapeRecord> records = {};
@@ -112,17 +112,17 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeObstacles = [&](const std::string& dir, const std::string& fname,
-        const std::vector<Obstacle>& obstacles){
+                              const std::vector<Obstacle>& obstacles) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"TYPE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"TYPE", 'C', 64, 0},
         };
         int shpType = SHP_POLYGONZ;
         std::vector<ShapeRecord> records = {};
         for (int i = 0; i < obstacles.size(); ++i) {
             const auto& pg = obstacles[i];
-            std::vector<std::string> attrs = {pg.id, "-1"};//std::to_string(pg.type)
+            std::vector<std::string> attrs = {pg.id, "-1"}; //std::to_string(pg.type)
             std::vector<ShapePoint> points = toArray(pg.geometry.outer);
             ShapeRecord record = {
                 i, shpType, attrs, points, {0}
@@ -133,17 +133,17 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeCrosswalks = [&](const std::string& dir, const std::string& fname,
-        const std::vector<Crosswalk>& crosswalks){
+                               const std::vector<Crosswalk>& crosswalks) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"TYPE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"TYPE", 'C', 64, 0},
         };
         int shpType = SHP_POLYGONZ;
         std::vector<ShapeRecord> records = {};
         for (int i = 0; i < crosswalks.size(); ++i) {
             const auto& pg = crosswalks[i];
-            std::vector<std::string> attrs = {pg.id, "-1"};//std::to_string(pg.type)
+            std::vector<std::string> attrs = {pg.id, "-1"}; //std::to_string(pg.type)
             std::vector<ShapePoint> points = toArray(pg.geometry.outer);
             ShapeRecord record = {
                 i, shpType, attrs, points, {0}
@@ -154,19 +154,19 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeAreas = [&](const std::string& dir, const std::string& fname,
-        const IntersectionArea& inter_area){
+                          const IntersectionArea& inter_area) {
         std::vector<Polygon2d> areas = {inter_area.geometry};
 
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"TYPE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"TYPE", 'C', 64, 0},
         };
         int shpType = SHP_POLYGONZ;
         std::vector<ShapeRecord> records = {};
         for (int i = 0; i < areas.size(); ++i) {
             const auto& pg = areas[i];
-            std::vector<std::string> attrs = {std::to_string(i), "-1"};//std::to_string(pg.type)
+            std::vector<std::string> attrs = {std::to_string(i), "-1"}; //std::to_string(pg.type)
             std::vector<ShapePoint> points = toArray(pg.outer);
             ShapeRecord record = {
                 i, shpType, attrs, points, {0}
@@ -188,21 +188,24 @@ static bool save(IntersectionInput& inp, std::string dir, std::string prefix) {
 
 static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
     auto writeLanes = [&](const std::string& dir, const std::string& fname,
-        const std::vector<ConnectivityCurve>& lanes) {
+                          const std::vector<ConnectivityCurve>& lanes) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"TURN_TYPE",  'C', 64, 0},
-            {"FLANE",'C', 64, 0},
-            {"TLANE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"TURN_TYPE", 'C', 64, 0},
+            {"FLANE", 'C', 64, 0},
+            {"TLANE", 'C', 64, 0},
         };
         int gid = -1;
         int shpType = SHP_POLYLINEZ;
         std::vector<ShapeRecord> records = {};
         for (int i = 0; i < lanes.size(); ++i) {
             const auto& pl = lanes[i];
-            if (pl.curve->numSegments() == 0) continue;
-            std::vector<std::string> attrs = {pl.id, std::to_string((int)pl.turn_type), pl.entry_lane_id, pl.exit_lane_id};
+            if (pl.curve->numSegments() == 0)
+                continue;
+            std::vector<std::string> attrs = {
+                pl.id, std::to_string((int)pl.turn_type), pl.entry_lane_id, pl.exit_lane_id
+            };
             std::vector<ShapePoint> points = toArray(pl.curve->sample(50));
             ShapeRecord record = {
                 ++gid, shpType, attrs, points, {0}
@@ -213,14 +216,14 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeLaneEdges = [&](const std::string& dir, const std::string& fname,
-        const std::vector<ConnectivityLaneEdge>& edgelines){
+                              const std::vector<ConnectivityLaneEdge>& edgelines) {
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"GROUP_ID",'C', 64, 0},
-            {"GROUP_TYPE",'C', 64, 0},
-            {"LEFT_CLINE_ID",'C', 64, 0},
-            {"RIGHT_CLINE_ID",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"GROUP_ID", 'C', 64, 0},
+            {"GROUP_TYPE", 'C', 64, 0},
+            {"LEFT_CLINE_ID", 'C', 64, 0},
+            {"RIGHT_CLINE_ID", 'C', 64, 0},
         };
         int shpType = SHP_POLYLINEZ;
         std::vector<ShapeRecord> records = {};
@@ -237,19 +240,19 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
         //std::cout << "[INFO]  Shapefile written: " << dir << "/" << fname << ".*\n";
     };
     auto writeAreas = [&](const std::string& dir, const std::string& fname,
-        const IntersectionArea& inter_area){
+                          const IntersectionArea& inter_area) {
         std::vector<Polygon2d> areas = {inter_area.geometry};
 
         std::filesystem::create_directories(dir);
         std::vector<DbfField> fields = {
-            {"ID",       'C', 64, 0},
-            {"TYPE",'C', 64, 0},
+            {"ID", 'C', 64, 0},
+            {"TYPE", 'C', 64, 0},
         };
         int shpType = SHP_POLYGONZ;
         std::vector<ShapeRecord> records = {};
         for (int i = 0; i < areas.size(); ++i) {
             const auto& pg = areas[i];
-            std::vector<std::string> attrs = {std::to_string(i), "-1"};//std::to_string(pg.type)
+            std::vector<std::string> attrs = {std::to_string(i), "-1"}; //std::to_string(pg.type)
             std::vector<ShapePoint> points = toArray(pg.outer);
             ShapeRecord record = {
                 i, shpType, attrs, points, {0}
@@ -267,11 +270,11 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
     std::string dest_file = std::filesystem::path(dir).parent_path().parent_path().string() + qgis_fname;
     if (std::filesystem::exists(qgis_temp))
         std::filesystem::copy_file(qgis_temp, dest_file,
-            std::filesystem::copy_options::skip_existing);
+                                   std::filesystem::copy_options::skip_existing);
 #endif
     writeLanes(dir, prefix + "_lanes", out.connectivity_curves);
-    writeLaneEdges  (dir, prefix + "_laneedges", out.lane_edges);
-    writeAreas    (dir, prefix + "_areas", out.area);
+    writeLaneEdges(dir, prefix + "_laneedges", out.lane_edges);
+    writeAreas(dir, prefix + "_areas", out.area);
     return true;
 }
 #endif //IODATA_SHAPEFILE_H

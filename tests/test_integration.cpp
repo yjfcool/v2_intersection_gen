@@ -4,6 +4,7 @@
 #include "constraints/fence_check.h"
 #include "curve/curve_utils.h"
 #include "iodata_shapefile.h"
+#include "optimizer/sdf_field.h"
 
 using Catch::Matchers::WithinAbs;
 
@@ -59,15 +60,15 @@ static IntersectionInput makeTwoDirectionInput(bool add_obstacle = false) {
     // Coarse area
     Polygon2d fence;
     fence.outer = {{-1,-5},{11,-5},{11,5},{-1,5}};
-    inp.area.coarse_area = fence;
+    inp.area.geometry = fence;
 
     // Boundary (road edges)
     Boundary top_edge;
-    top_edge.id="TOP"; top_edge.type=BoundaryType::RoadEdge;
+    top_edge.id="TOP"; top_edge.type=Boundary::Type::RoadEdge;
     top_edge.geometry.points={{-1,5},{11,5}};
 
     Boundary bot_edge;
-    bot_edge.id="BOT"; bot_edge.type=BoundaryType::RoadEdge;
+    bot_edge.id="BOT"; bot_edge.type=Boundary::Type::RoadEdge;
     bot_edge.geometry.points={{-1,-5},{11,-5}};
 
     inp.boundaries = {top_edge, bot_edge};
@@ -143,7 +144,7 @@ TEST_CASE("Integration: curve stays inside fence", "[integration]") {
     auto& cc = out.connectivity_curves[0];
     REQUIRE(cc.curve.has_value());
 
-    auto& fence = inp.area.coarse_area;
+    auto& fence = inp.area.geometry;
     for (auto& pt : cc.curve->sampleByArcLength(40)) {
         // Allow small numerical overshoot
         double dist = pointToPolygonDist(pt, fence);
@@ -176,7 +177,7 @@ TEST_CASE("Integration: obstacle avoidance, no penetration", "[integration]") {
 
     // Build SDF to check penetration
     SDFField check_sdf;
-    check_sdf.build(inp.area.coarse_area.bbox(), inp.obstacles, 0.2, 0.0);
+    check_sdf.build(inp.area.geometry.bbox(), inp.obstacles, 0.2, 0.0);
 
     for (auto& pt : cc.curve->sampleByArcLength(50)) {
         auto [d,_] = check_sdf.queryWithGrad(pt);
@@ -212,8 +213,8 @@ TEST_CASE("Integration: fine area is non-empty polygon", "[integration]") {
     save(inp, "./fine-area/input/", "");
     save(out, "./fine-area/output/", "");
 
-    REQUIRE_FALSE(out.area.fine_area.outer.empty());
-    REQUIRE(out.area.fine_area.outer.size() >= 3);
+    REQUIRE_FALSE(out.area.geometry.outer.empty());
+    REQUIRE(out.area.geometry.outer.size() >= 3);
 }
 
 TEST_CASE("Integration: perf stats are populated", "[integration]") {
@@ -241,7 +242,7 @@ static IntersectionInput makeFourWayInput() {
     // Coarse area: 20×20m square centred at origin
     Polygon2d fence;
     fence.outer = {{-10,-10},{10,-10},{10,10},{-10,10}};
-    inp.area.coarse_area = fence;
+    inp.area.geometry = fence;
 
     // 4 directions: North(N), South(S), East(E), West(W)
     // Each direction: 1 entry lane + 1 exit lane

@@ -66,7 +66,7 @@ bool FineAreaGenerator::isSimple(const Polygon2d&poly){
 
 Polygon2d FineAreaGenerator::generate(const IntersectionInput&input,const std::vector<ConnectivityCurve>&ccs){
     std::vector<LineString2d>road_edges;
-    for(auto&bnd:input.boundaries)if(bnd.type==BoundaryType::RoadEdge)road_edges.push_back(bnd.geometry);
+    for(auto&bnd:input.boundaries)if(bnd.type==Boundary::Type::RoadEdge)road_edges.push_back(bnd.geometry);
     std::vector<Vec2d>endpoints;
     for(auto&cc:ccs){if(!cc.curve)continue;endpoints.push_back(cc.curve->startPt());endpoints.push_back(cc.curve->endPt());}
     if(road_edges.empty()){

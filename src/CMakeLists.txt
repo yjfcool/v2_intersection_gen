@@ -11,8 +11,6 @@ add_library(intersection_gen_lib STATIC
 
     constraints/infeasibility_detector.cpp
     constraints/cluster_order.cpp
-    constraints/intersection_check.cpp
-    constraints/fence_check.cpp
 
         generator/connectivity_generator.cpp
         generator/lane_edge_generator.cpp

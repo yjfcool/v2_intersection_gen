@@ -2,15 +2,12 @@
 #include "curve/hermite_init.h"
 #include "curve/curve_utils.h"
 #include "constraints/fence_check.h"
-#include "constraints/intersection_check.h"
+#include "utils.h"
 #include <chrono>
 #include <algorithm>
 #include <map>
 #include <cmath>
 #include <iostream>
-
-#include "iodata_shapefile.h"
-#include "shapefile.hpp"
 
 // ── IntersectionInput helpers ─────────────────────────────────
 
@@ -59,7 +56,7 @@ std::pair<Vec2d,Vec2d> IntersectionInput::entryPtDir(const LaneId&lid)const{
         return //g?std::make_pair(g->ref_point,g->direction) :
                 std::make_pair(Vec2d(0,0),Vec2d(1,0));
     }
-    return{laneEntryPoint(l->geometry), laneEntryTangent(l->geometry)};
+    return{entryLinePoint(l->geometry.points), entryLineTangent(l->geometry.points)};
 }
 std::pair<Vec2d,Vec2d> IntersectionInput::exitPtDir(const LaneId&lid)const{
     auto*l=findLane(lid);
@@ -69,7 +66,7 @@ std::pair<Vec2d,Vec2d> IntersectionInput::exitPtDir(const LaneId&lid)const{
         return //g?std::make_pair(g->ref_point,g->direction) :
                 std::make_pair(Vec2d(10,0),Vec2d(1,0));
     }
-    return{laneExitPoint(l->geometry), laneExitTangent(l->geometry)};
+    return{exitLinePoint(l->geometry.points), exitLineTangent(l->geometry.points)};
 }
 
 // ── GlobalCoordinator ─────────────────────────────────────────
@@ -288,12 +285,6 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     cost.full_param_mode = (initial.numSegments() > 1);
 
     BezierCurve opt=optimiseCurve(cost,solver_,initial,4);
-#ifndef NDEBUG
-    // Print final curve for QGIS verification
-    std::cout << toWKT(genVectorline({p0[0],p0[1],0}, {t0[0],t0[1],0}, 1.0), conn.entry_lane_id) << std::endl;
-    std::cout << toWKT(genVectorline({p1[0],p1[1],0}, {t1[0],t1[1],0}, 1.0), conn.exit_lane_id) << std::endl;
-    std::cout << toWKT(toArray(opt.sample(50)), "optm_"+cc.id) << std::endl;
-#endif
 
     bool is_uturn = (conn.turn_type==TurnType::UTurnLeft||conn.turn_type==TurnType::UTurnRight);
     // Skip elasticBandSmooth for:
@@ -310,10 +301,6 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     // of any optimiser drift during the multi-segment optimisation.
     BezierCurve final_c=postProcess(opt,sdf,input.area.geometry,0.25,t0,t1,skip_band,&p0,&p1);
     cc.curve=final_c;
-#ifndef NDEBUG
-    // Print final curve for QGIS verification
-    std::cout << toWKT(toArray(final_c.sample(50)), "post_"+cc.id) << std::endl;
-#endif
     validate(cc,input,sdf);
     if(pre.narrow_passage&&cc.status==CurveStatus::OK)cc.status=CurveStatus::WarnA2;
     return cc;

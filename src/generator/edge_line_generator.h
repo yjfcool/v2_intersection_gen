@@ -119,8 +119,8 @@ public:
                             auto rightEdgeIt = inp.findEdge(rightOfI);
                             auto leftEdgeIt = inp.findEdge(leftOfI1);
                             if(rightEdgeIt && leftEdgeIt) {
-                                auto rEdgePt = GetConnPoint(rightEdgeIt->geometry.points, true);//rightEdgeIt->connectionPt
-                                auto lEdgePt = GetConnPoint(leftEdgeIt->geometry.points, true);//leftEdgeIt->connectionPt
+                                auto rEdgePt = getConnPoint(rightEdgeIt->geometry.points, true);//rightEdgeIt->connectionPt
+                                auto lEdgePt = getConnPoint(leftEdgeIt->geometry.points, true);//leftEdgeIt->connectionPt
                                 double ptDist = dist(rEdgePt, lEdgePt);
                                 if(ptDist < 0.01) {
                                     enterShared = true;
@@ -151,8 +151,8 @@ public:
                             auto rightEdgeIt = inp.findEdge(rightOfI);
                             auto leftEdgeIt = inp.findEdge(leftOfI1);
                             if(rightEdgeIt && leftEdgeIt) {
-                                auto rEdgePt = GetConnPoint(rightEdgeIt->geometry.points, false);//rightEdgeIt->connectionPt
-                                auto lEdgePt = GetConnPoint(leftEdgeIt->geometry.points, false);//leftEdgeIt->connectionPt
+                                auto rEdgePt = getConnPoint(rightEdgeIt->geometry.points, false);//rightEdgeIt->connectionPt
+                                auto lEdgePt = getConnPoint(leftEdgeIt->geometry.points, false);//leftEdgeIt->connectionPt
                                 double ptDist = dist(rEdgePt, lEdgePt);
                                 if(ptDist < 0.01) {
                                     exitShared = true;
@@ -264,29 +264,29 @@ private:
         Vec2d startPt{0,0};
         auto enterEdgeIt = inp.findEdge(sharedEnterEdgeId);
         if(enterEdgeIt) {
-            startPt = GetConnPoint(enterEdgeIt->geometry.points, true);//enterEdgeIt->connectionPt;
+            startPt = getConnPoint(enterEdgeIt->geometry.points, true);//enterEdgeIt->connectionPt;
         }
 
         // End point = shared exit edge connection point
         Vec2d endPt{0,0};
         auto exitEdgeIt = inp.findEdge(sharedExitEdgeId);
         if(exitEdgeIt) {
-            endPt = GetConnPoint(exitEdgeIt->geometry.points, false);//exitEdgeIt->connectionPt;
+            endPt = getConnPoint(exitEdgeIt->geometry.points, false);//exitEdgeIt->connectionPt;
         }
 
         // Start tangent = average of enter tangent directions from both lanes
         auto enterClI = inp.findLane(gclI.entry_lane_id);
         auto enterClI1 = inp.findLane(gclI1.entry_lane_id);
-        Vec2d startTangI = (enterClI) ? GetConnTangent(enterClI->geometry.points, true) : Vec2d{0,1};//enterClI->tangentDir
-        Vec2d startTangI1 = (enterClI1) ? GetConnTangent(enterClI1->geometry.points, true) : Vec2d{0,1};//enterClI1->tangentDir
+        Vec2d startTangI = (enterClI) ? getConnTangent(enterClI->geometry.points, true) : Vec2d{0,1};//enterClI->tangentDir
+        Vec2d startTangI1 = (enterClI1) ? getConnTangent(enterClI1->geometry.points, true) : Vec2d{0,1};//enterClI1->tangentDir
         Vec2d startTangSum = startTangI + startTangI1;
         Vec2d startTang = (startTangSum.norm() > EPS) ? startTangSum.normalized() : startTangI;
 
         // End tangent = average of exit tangent directions from both lanes (points inward)
         auto exitClI = inp.findLane(gclI.exit_lane_id);
         auto exitClI1 = inp.findLane(gclI1.exit_lane_id);
-        Vec2d endTangI = (exitClI) ? GetConnTangent(exitClI->geometry.points, false) : Vec2d{0,1};//exitClI->tangentDir
-        Vec2d endTangI1 = (exitClI1) ? GetConnTangent(exitClI1->geometry.points, false) : Vec2d{0,1};//exitClI1->tangentDir
+        Vec2d endTangI = (exitClI) ? getConnTangent(exitClI->geometry.points, false) : Vec2d{0,1};//exitClI->tangentDir
+        Vec2d endTangI1 = (exitClI1) ? getConnTangent(exitClI1->geometry.points, false) : Vec2d{0,1};//exitClI1->tangentDir
         Vec2d endTangSum = endTangI + endTangI1;
         Vec2d endTang = (endTangSum.norm() > EPS) ? endTangSum.normalized() : endTangI;
 
@@ -563,8 +563,8 @@ private:
         auto clit = inp.findLane(entry_lane_id);
         if(!clit) return edgeLine_defaultLaneWidth * 0.5;
 
-        const Vec2d& clPt = GetConnPoint(clit->geometry.points, is_entryline);//clit->connectionPt;
-        Vec2d tangent = GetConnTangent(clit->geometry.points, is_entryline);//clit->tangentDir;
+        const Vec2d& clPt = getConnPoint(clit->geometry.points, is_entryline);//clit->connectionPt;
+        Vec2d tangent = getConnTangent(clit->geometry.points, is_entryline);//clit->tangentDir;
         Vec2d normal  = rotLeft(tangent);
 
         double bestDist = -1;
@@ -572,7 +572,7 @@ private:
             auto elit = inp.findEdge(eid);
             if(!elit) continue;
             if(!elit->geometry.points.empty()) continue;
-            const Vec2d& ep = GetConnPoint(elit->geometry.points, is_entryline);//elit->connectionPt;
+            const Vec2d& ep = getConnPoint(elit->geometry.points, is_entryline);//elit->connectionPt;
             double lateral = (ep-clPt).dot(normal);
             if(isLeft && lateral > 0.01 && lateral < 10.0){
                 if(bestDist<0 || lateral<bestDist) bestDist=lateral;
@@ -595,8 +595,8 @@ private:
         auto clit = inp.findLane(lineId);
         if(!clit) return {0,0};
 
-        const Vec2d& clPt  = GetConnPoint(clit->geometry.points, is_entryline);//clit->connectionPt;
-        const Vec2d& tang  = GetConnTangent(clit->geometry.points, is_entryline);//clit->tangentDir;
+        const Vec2d& clPt  = getConnPoint(clit->geometry.points, is_entryline);//clit->connectionPt;
+        const Vec2d& tang  = getConnTangent(clit->geometry.points, is_entryline);//clit->tangentDir;
         Vec2d normal = rotLeft(tang);
 
         auto git = inp.findGroup(groupId);
@@ -605,7 +605,7 @@ private:
                 auto elit = inp.findEdge(eid);
                 if(!elit) continue;
                 if(!elit->geometry.points.empty()) continue;
-                const Vec2d& ep = GetConnPoint(elit->geometry.points, is_entryline);//elit->connectionPt;
+                const Vec2d& ep = getConnPoint(elit->geometry.points, is_entryline);//elit->connectionPt;
                 double lat = (ep-clPt).dot(normal);
                 if(isLeft && lat > 0.01 && std::abs(lat-hw) < hw*0.8) return ep;
                 if(!isLeft && lat < -0.01 && std::abs(-lat-hw) < hw*0.8) return ep;
@@ -620,6 +620,6 @@ private:
     Vec2d getEdgeTangent(const std::string& lineId, const IntersectionInput& inp, bool is_entryline) const {
         auto clit = inp.findLane(lineId);
         if(!clit) return {0,1};
-        return GetConnTangent(clit->geometry.points, is_entryline);//clit->tangentDir;
+        return getConnTangent(clit->geometry.points, is_entryline);//clit->tangentDir;
     }
 };

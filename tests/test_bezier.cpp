@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "curve/bezier.h"
 #include "curve/curve_utils.h"
+#include "utils.h"
 
 #include "iodata_shapefile.h"
 #include "shapefile.hpp"

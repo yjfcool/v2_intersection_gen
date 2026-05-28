@@ -173,7 +173,7 @@ private:
 
         // 回退：用中心线连接点
         for(auto& cl : inp.lanes){
-            c += GetConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.connectionPt;
+            c += getConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.connectionPt;
             ++cnt;
         }
         return cnt > 0 ? c*(1.0/cnt) : Vec2d{0,0};
@@ -192,7 +192,7 @@ private:
             }
         }
         for(auto& cl : inp.lanes){
-            auto connPt = GetConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));
+            auto connPt = getConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));
             maxD = std::max(maxD, dist(connPt, center));
         }
         return maxD;
@@ -215,7 +215,7 @@ private:
         // 检查路口外边线连接点
         for(auto& el : inp.lane_edges){
             if(el.geometry.points.empty()) continue;
-            auto connPt = GetConnPoint(el.geometry.points, true);//el.connectionPt//TODO:entry|exit
+            auto connPt = getConnPoint(el.geometry.points, true);//el.connectionPt//TODO:entry|exit
             double d = dist(pt, connPt);
             if(d < minD){ minD=d; best=connPt; }
         }
@@ -232,7 +232,7 @@ private:
         // 收集路口外边线的连接点（这些是路口面的边界顶点）
         for(auto& el : inp.lane_edges){
             if(el.geometry.points.empty()) continue;
-            Vec2d cp = GetConnPoint(el.geometry.points, inp.IsEntryLaneEdge(el.id));//el.connectionPt;
+            Vec2d cp = getConnPoint(el.geometry.points, inp.IsEntryLaneEdge(el.id));//el.connectionPt;
             if(dist(cp,center) > radius*2.0) continue;
 
             // 检查是否已有相近的端点
@@ -246,8 +246,8 @@ private:
         // 补充中心线连接点的法线方向偏移点（近似边界点）
         for(auto& cl : inp.lanes){
             if(cl.geometry.points.size()<2) continue;
-            Vec2d cp = GetConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.connectionPt;
-            Vec2d ct = GetConnTangent(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.tangentDir
+            Vec2d cp = getConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.connectionPt;
+            Vec2d ct = getConnTangent(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.tangentDir
             Vec2d n  = rotLeft(ct);
             // 左侧点
             Vec2d lp = cp + n*snapTolerance*2;
@@ -392,7 +392,7 @@ private:
             }
         }
         for(auto& cl : inp.lanes){
-            Vec2d cp = GetConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.connectionPt;
+            Vec2d cp = getConnPoint(cl.geometry.points, inp.IsEntryLane(cl.id));//cl.connectionPt;
             pts.push_back(cp);
         }
         if(pts.empty()) return {};

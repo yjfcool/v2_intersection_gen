@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
 #include "constraints/cluster_order.h"
-#include "constraints/intersection_check.h"
+#include "curve/curve_utils.h"
 #include "optimizer/sdf_field.h"
 #include "curve/bezier.h"
 

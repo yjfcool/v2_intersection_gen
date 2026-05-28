@@ -15,6 +15,7 @@
 #include <cmath>
 #include <algorithm>
 #include "iodata_shapefile.h"
+#include "optimizer/sdf_field.h"
 
 using Catch::Matchers::WithinAbs;
 

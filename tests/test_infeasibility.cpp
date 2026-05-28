@@ -130,7 +130,7 @@ TEST_CASE("tryRelaxFence: expansion blocked by road edge", "[infeasibility]") {
 
     // Road edge exactly at fence boundary x=10
     LineString2d edge; edge.points = {{10,-10},{10,10}};
-    Boundary bnd; bnd.type = BoundaryType::RoadEdge; bnd.geometry = edge;
+    Boundary bnd; bnd.type = Boundary::Type::RoadEdge; bnd.geometry = edge;
 
     Vec2d conflict(9, 0);
     auto res = tryRelaxFence(fence, {bnd}, conflict, 1.5);

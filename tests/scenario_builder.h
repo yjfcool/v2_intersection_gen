@@ -142,7 +142,7 @@ inline void addRoadEdgeBoundary(IntersectionInput& inp,
                                  Vec2d a, Vec2d b) {
     Boundary bnd;
     bnd.id   = id;
-    bnd.type = BoundaryType::RoadEdge;
+    bnd.type = Boundary::Type::RoadEdge;
     bnd.geometry.points = {a, b};
     inp.boundaries.push_back(bnd);
 }
