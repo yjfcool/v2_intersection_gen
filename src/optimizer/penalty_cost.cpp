@@ -221,13 +221,13 @@ void PenaltyCost::addObstacleGrad(const BezierCurve& c, const VecXd& params,
 
             int base = 4*k;
             // p_{4k}   = ctrl[1].x  →  ∂c.x/∂p = B1, ∂c.y/∂p = 0
-            grad[base+0] += coeff * (gd.x() * B1);
+            grad[base+0] += coeff * (gd[0] * B1);
             // p_{4k+1} = ctrl[1].y  →  ∂c.x/∂p = 0, ∂c.y/∂p = B1
-            grad[base+1] += coeff * (gd.y() * B1);
+            grad[base+1] += coeff * (gd[1] * B1);
             // p_{4k+2} = ctrl[2].x
-            grad[base+2] += coeff * (gd.x() * B2);
+            grad[base+2] += coeff * (gd[0] * B2);
             // p_{4k+3} = ctrl[2].y
-            grad[base+3] += coeff * (gd.y() * B2);
+            grad[base+3] += coeff * (gd[1] * B2);
         }
     }
 }

@@ -18,10 +18,10 @@ TEST_CASE("BezierSegment evaluate endpoints", "[bezier]") {
 
     auto p0 = s.evaluate(0.0);
     auto p1 = s.evaluate(1.0);
-    REQUIRE_THAT(p0.x(), WithinAbs(0.0, 1e-9));
-    REQUIRE_THAT(p0.y(), WithinAbs(0.0, 1e-9));
-    REQUIRE_THAT(p1.x(), WithinAbs(3.0, 1e-9));
-    REQUIRE_THAT(p1.y(), WithinAbs(1.0, 1e-9));
+    REQUIRE_THAT(p0[0], WithinAbs(0.0, 1e-9));
+    REQUIRE_THAT(p0[1], WithinAbs(0.0, 1e-9));
+    REQUIRE_THAT(p1[0], WithinAbs(3.0, 1e-9));
+    REQUIRE_THAT(p1[1], WithinAbs(1.0, 1e-9));
 }
 
 TEST_CASE("BezierSegment tangent at endpoints", "[bezier]") {
@@ -32,8 +32,8 @@ TEST_CASE("BezierSegment tangent at endpoints", "[bezier]") {
     s.ctrl[3] = Vec2d(3,1);
 
     auto t0 = s.tangent(0.0);
-    REQUIRE_THAT(t0.normalized().x(), WithinAbs(1.0, 1e-6));
-    REQUIRE_THAT(t0.normalized().y(), WithinAbs(0.0, 1e-6));
+    REQUIRE_THAT(t0.normalized()[0], WithinAbs(1.0, 1e-6));
+    REQUIRE_THAT(t0.normalized()[1], WithinAbs(0.0, 1e-6));
 }
 
 TEST_CASE("BezierSegment de Casteljau split preserves endpoints", "[bezier]") {
@@ -60,13 +60,13 @@ TEST_CASE("makeCubicG1 endpoint positions and tangents", "[bezier]") {
 
     // ctrl[1] must lie along t0 from p0
     Vec2d dir1 = (seg.ctrl[1]-p0).normalized();
-    REQUIRE_THAT(dir1.x(), WithinAbs(1.0, 1e-6));
-    REQUIRE_THAT(dir1.y(), WithinAbs(0.0, 1e-6));
+    REQUIRE_THAT(dir1[0], WithinAbs(1.0, 1e-6));
+    REQUIRE_THAT(dir1[1], WithinAbs(0.0, 1e-6));
 
     // ctrl[2] must lie along -t1 from p1
     Vec2d dir2 = (p1 - seg.ctrl[2]).normalized();
-    REQUIRE_THAT(dir2.x(), WithinAbs(1.0, 1e-6));
-    REQUIRE_THAT(dir2.y(), WithinAbs(0.0, 1e-6));
+    REQUIRE_THAT(dir2[0], WithinAbs(1.0, 1e-6));
+    REQUIRE_THAT(dir2[1], WithinAbs(0.0, 1e-6));
 }
 
 TEST_CASE("BezierCurve G1 at join points", "[bezier]") {
@@ -133,8 +133,8 @@ TEST_CASE("segmentsIntersect basic", "[curve_utils]") {
     Vec2d a(0,0), b(2,0), c(1,-1), d(1,1);
     Vec2d out;
     REQUIRE(segmentsIntersect(a,b,c,d,&out));
-    REQUIRE_THAT(out.x(), WithinAbs(1.0, 1e-6));
-    REQUIRE_THAT(out.y(), WithinAbs(0.0, 1e-6));
+    REQUIRE_THAT(out[0], WithinAbs(1.0, 1e-6));
+    REQUIRE_THAT(out[1], WithinAbs(0.0, 1e-6));
 }
 
 TEST_CASE("segmentsIntersect parallel lines do not intersect", "[curve_utils]") {

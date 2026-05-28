@@ -152,14 +152,14 @@ TEST_CASE("optimiseCurve avoids central obstacle", "[optimizer]") {
 
 static Polygon2d squareFence(Vec2d c,double h){
     Polygon2d p;
-    p.outer={{c.x()-h,c.y()-h},{c.x()+h,c.y()-h},
-             {c.x()+h,c.y()+h},{c.x()-h,c.y()+h}};
+    p.outer={{c[0]-h,c[1]-h},{c[0]+h,c[1]-h},
+             {c[0]+h,c[1]+h},{c[0]-h,c[1]+h}};
     return p;
 }
 static Obstacle makeObs(Vec2d c,double hw,double hh){
     Obstacle o;
-    o.geometry.outer={{c.x()-hw,c.y()-hh},{c.x()+hw,c.y()-hh},
-                      {c.x()+hw,c.y()+hh},{c.x()-hw,c.y()+hh}};
+    o.geometry.outer={{c[0]-hw,c[1]-hh},{c[0]+hw,c[1]-hh},
+                      {c[0]+hw,c[1]+hh},{c[0]-hw,c[1]+hh}};
     return o;
 }
 static double angleDeg(const Vec2d& a,const Vec2d& b){
@@ -185,7 +185,7 @@ TEST_CASE("Level-1: buildInitialCurve returns arch for single obstacle", "[bypas
     // Arch: all sample points on the same side of the direct line (no zigzag)
     auto pts=init.sampleByArcLength(30);
     Vec2d along=(p1-p0).normalized();
-    Vec2d perp{-along.y(),along.x()};
+    Vec2d perp{-along[1],along[0]};
     // Find which side the arch goes
     double max_lat=0;
     for(auto& pt:pts) max_lat=std::max(max_lat,std::abs((pt-p0).dot(perp)));

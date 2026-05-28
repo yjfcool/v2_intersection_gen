@@ -6,7 +6,7 @@
 #include <limits>
 
 static Clipper2Lib::PathD toCP(const std::vector<Vec2d>&pts){
-    Clipper2Lib::PathD p; for(auto&v:pts)p.emplace_back(v.x(),v.y()); return p;
+    Clipper2Lib::PathD p; for(auto&v:pts)p.emplace_back(v[0],v.y()); return p;
 }
 static std::vector<Vec2d> fromCP(const Clipper2Lib::PathD&p){
     std::vector<Vec2d> o; for(auto&v:p)o.emplace_back(v.x,v.y); return o;
@@ -99,14 +99,14 @@ double SDFField::rawAt(int r,int c)const{
     r=std::max(0,std::min(rows_-1,r)); c=std::max(0,std::min(cols_-1,c)); return grid_[idx(r,c)];
 }
 std::pair<int,int> SDFField::worldToCell(const Vec2d&p)const{
-    return{(int)((p.y()-roi_.min_pt.y())/cs_),(int)((p.x()-roi_.min_pt.x())/cs_)};
+    return{(int)((p[1]-roi_.min_pt.y())/cs_),(int)((p[0]-roi_.min_pt.x())/cs_)};
 }
 Vec2d SDFField::cellToWorld(int r,int c)const{
-    return Vec2d(roi_.min_pt.x()+(c+0.5)*cs_,roi_.min_pt.y()+(r+0.5)*cs_);
+    return Vec2d(roi_.min_pt[0]+(c+0.5)*cs_,roi_.min_pt[1]+(r+0.5)*cs_);
 }
 std::pair<double,Vec2d> SDFField::queryWithGrad(const Vec2d&pt)const{
     if(grid_.empty())return{1e18,Vec2d(0,0)};
-    double fx=(pt.x()-roi_.min_pt.x())/cs_-0.5,fy=(pt.y()-roi_.min_pt.y())/cs_-0.5;
+    double fx=(pt[0]-roi_.min_pt.x())/cs_-0.5,fy=(pt[1]-roi_.min_pt.y())/cs_-0.5;
     int x0=(int)std::floor(fx),y0=(int)std::floor(fy),x1=x0+1,y1=y0+1;
     double tx=fx-x0,ty=fy-y0;
     x0=std::max(0,std::min(cols_-1,x0));x1=std::max(0,std::min(cols_-1,x1));

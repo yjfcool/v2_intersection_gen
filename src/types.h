@@ -19,14 +19,14 @@ struct BoundingBox2d {
     Vec2d max_pt{-1e18,-1e18};
     void  expand(const Vec2d& p){min_pt=min_pt.cwiseMin(p);max_pt=max_pt.cwiseMax(p);}
     bool  intersects(const BoundingBox2d& o)const{
-        return max_pt.x()>=o.min_pt.x()&&min_pt.x()<=o.max_pt.x()&&
-               max_pt.y()>=o.min_pt.y()&&min_pt.y()<=o.max_pt.y();}
+        return max_pt[0]>=o.min_pt[0]&&min_pt[0]<=o.max_pt[0]&&
+               max_pt[1]>=o.min_pt[1]&&min_pt[1]<=o.max_pt[1];}
     bool  contains(const Vec2d& p)const{
-        return p.x()>=min_pt.x()&&p.x()<=max_pt.x()&&
-               p.y()>=min_pt.y()&&p.y()<=max_pt.y();}
-    double width() const{return max_pt.x()-min_pt.x();}
-    double height()const{return max_pt.y()-min_pt.y();}
-    bool   empty() const{return min_pt.x()>max_pt.x();}
+        return p[0]>=min_pt[0]&&p[0]<=max_pt[0]&&
+               p[1]>=min_pt[1]&&p[1]<=max_pt[1];}
+    double width() const{return max_pt[0]-min_pt[0];}
+    double height()const{return max_pt[1]-min_pt[1];}
+    bool   empty() const{return min_pt[0]>max_pt[0];}
 };
 
 struct LineString2d {
@@ -223,7 +223,7 @@ struct IntersectionInput{
 };
 
 // ── Inline math helpers ──────────────────────────────────────
-inline double cross2d(const Vec2d&a,const Vec2d&b){return a.x()*b.y()-a.y()*b.x();}
+inline double cross2d(const Vec2d&a,const Vec2d&b){return a[0]*b[1]-a[1]*b[0];}
 inline double angleBetween(const Vec2d&a,const Vec2d&b){
     double c=a.normalized().dot(b.normalized());
     return std::acos(std::max(-1.0,std::min(1.0,c)));}

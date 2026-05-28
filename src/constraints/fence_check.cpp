@@ -11,8 +11,8 @@ bool polygonContains(const Polygon2d&poly,const Vec2d&pt){
     auto&ring=poly.outer;int n=(int)ring.size();if(n<3)return false;
     bool inside=false;
     for(int i=0,j=n-1;i<n;j=i++){
-        double xi=ring[i].x(),yi=ring[i].y(),xj=ring[j].x(),yj=ring[j].y();
-        if(((yi>pt.y())!=(yj>pt.y()))&&(pt.x()<(xj-xi)*(pt.y()-yi)/(yj-yi+1e-20)+xi))
+        double xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+        if(((yi>pt.y())!=(yj>pt.y()))&&(pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi+1e-20)+xi))
             inside=!inside;}
     if(inside)for(auto&h:poly.holes){Polygon2d hp;hp.outer=h;if(polygonContains(hp,pt))return false;}
     return inside;}

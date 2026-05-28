@@ -7,10 +7,10 @@ using Catch::Matchers::WithinAbs;
 static Polygon2d makeSquare(Vec2d centre, double half) {
     Polygon2d p;
     p.outer = {
-        {centre.x()-half, centre.y()-half},
-        {centre.x()+half, centre.y()-half},
-        {centre.x()+half, centre.y()+half},
-        {centre.x()-half, centre.y()+half}
+        {centre[0]-half, centre[1]-half},
+        {centre[0]+half, centre[1]-half},
+        {centre[0]+half, centre[1]+half},
+        {centre[0]-half, centre[1]+half}
     };
     return p;
 }
@@ -63,7 +63,7 @@ TEST_CASE("SDFField: gradient points away from obstacle", "[sdf]") {
     auto [d, g] = sdf.queryWithGrad(pt);
     REQUIRE(d > 0.0);
     // Gradient should point in +x direction (away from obstacle at x=1)
-    REQUIRE(g.x() > 0);
+    REQUIRE(g[0] > 0);
 }
 
 TEST_CASE("SDFField: obstacle penalty is zero far away", "[sdf]") {

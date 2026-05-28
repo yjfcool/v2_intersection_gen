@@ -142,8 +142,8 @@ AdaptiveRefineResult adaptiveRefine(const BezierCurve&c,const SDFField&sdf,doubl
 VecXd curveToParams(const BezierCurve&c){
     int n=(int)c.segs.size();VecXd p(4*n);
     for(int i=0;i<n;++i){
-        p[4*i+0]=c.segs[i].ctrl[1].x();p[4*i+1]=c.segs[i].ctrl[1].y();
-        p[4*i+2]=c.segs[i].ctrl[2].x();p[4*i+3]=c.segs[i].ctrl[2].y();}
+        p[4*i+0]=c.segs[i].ctrl[1][0];p[4*i+1]=c.segs[i].ctrl[1][1];
+        p[4*i+2]=c.segs[i].ctrl[2][0];p[4*i+3]=c.segs[i].ctrl[2][1];}
     return p;}
 BezierCurve curveFromParams(const VecXd&params,const BezierCurve&proto){
     BezierCurve c;int n=(int)proto.segs.size();c.segs=proto.segs;
@@ -163,13 +163,13 @@ VecXd curveToParamsFull(const BezierCurve&c){
     VecXd p(sz);
     if(n==0)return p;
     // seg 0: only inner pts
-    p[0]=c.segs[0].ctrl[1].x();p[1]=c.segs[0].ctrl[1].y();
-    p[2]=c.segs[0].ctrl[2].x();p[3]=c.segs[0].ctrl[2].y();
+    p[0]=c.segs[0].ctrl[1][0];p[1]=c.segs[0].ctrl[1][1];
+    p[2]=c.segs[0].ctrl[2][0];p[3]=c.segs[0].ctrl[2][1];
     for(int i=1;i<n;++i){
         int b=4+6*(i-1);
-        p[b+0]=c.segs[i].ctrl[0].x();p[b+1]=c.segs[i].ctrl[0].y(); // join
-        p[b+2]=c.segs[i].ctrl[1].x();p[b+3]=c.segs[i].ctrl[1].y();
-        p[b+4]=c.segs[i].ctrl[2].x();p[b+5]=c.segs[i].ctrl[2].y();}
+        p[b+0]=c.segs[i].ctrl[0][0];p[b+1]=c.segs[i].ctrl[0][1]; // join
+        p[b+2]=c.segs[i].ctrl[1][0];p[b+3]=c.segs[i].ctrl[1][1];
+        p[b+4]=c.segs[i].ctrl[2][0];p[b+5]=c.segs[i].ctrl[2][1];}
     return p;}
 
 // Reconstruct from full params.  G1 at joins enforced by linking ctrl[3] of

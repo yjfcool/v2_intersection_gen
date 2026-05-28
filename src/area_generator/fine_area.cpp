@@ -40,9 +40,9 @@ Polygon2d FineAreaGenerator::convexHull(const std::vector<Vec2d>&pts){
     if(pts.size()<3){Polygon2d p;p.outer=pts;return p;}
     std::vector<Vec2d>s=pts;
     auto pivot=*std::min_element(s.begin(),s.end(),[](const Vec2d&a,const Vec2d&b){
-        return a.y()<b.y()||(a.y()==b.y()&&a.x()<b.x());});
+        return a[1]<b[1]||(a[1]==b[1]&&a[0]<b.x());});
     std::sort(s.begin(),s.end(),[&](const Vec2d&a,const Vec2d&b){
-        double ax=a.x()-pivot.x(),ay=a.y()-pivot.y(),bx=b.x()-pivot.x(),by=b.y()-pivot.y();
+        double ax=a[0]-pivot[0],ay=a[1]-pivot[1],bx=b[0]-pivot[0],by=b[1]-pivot[1];
         double cr=ax*by-ay*bx;
         if(std::abs(cr)>1e-10)return cr>0;
         return ax*ax+ay*ay<bx*bx+by*by;});

@@ -16,12 +16,12 @@
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 inline Vec2d rightPerp(const Vec2d& dir) {
-    return Vec2d(dir.y(), -dir.x()); // rotate -90° (right side)
+    return Vec2d(dir[1], -dir.x()); // rotate -90° (right side)
 }
 inline Polygon2d makeRectObstacle(Vec2d centre, double hw, double hh) {
     Polygon2d p;
-    p.outer = { {centre.x()-hw, centre.y()-hh}, {centre.x()+hw, centre.y()-hh},
-                {centre.x()+hw, centre.y()+hh}, {centre.x()-hw, centre.y()+hh} };
+    p.outer = { {centre[0]-hw, centre[1]-hh}, {centre[0]+hw, centre[1]-hh},
+                {centre[0]+hw, centre[1]+hh}, {centre[0]-hw, centre[1]+hh} };
     return p;
 }
 inline Polygon2d makeCircleObstacle(Vec2d centre, double r, int segs=16) {

@@ -45,7 +45,7 @@ bool detectSandwich(const SDFField&sdf,const Polygon2d&fence,double cl){
     auto&ring=fence.outer;int n=(int)ring.size();
     for(int i=0;i<n;++i){
         Vec2d a=ring[i],b=ring[(i+1)%n],mid=0.5*(a+b);
-        Vec2d edge=(b-a).normalized();Vec2d inward{edge.y(),-edge.x()};
+        Vec2d edge=(b-a).normalized();Vec2d inward{edge[1],-edge[0]};
         Vec2d inner=mid+cl*inward;
         auto[d,dummy]=sdf.queryWithGrad(inner);if(d<cl)return true;}
     return false;}
@@ -55,7 +55,7 @@ FenceRelaxResult tryRelaxFence(const Polygon2d&orig,const std::vector<Boundary>&
     using namespace Clipper2Lib;
     if(orig.outer.empty())return{false,{},0};
     PathsD ps;PathD p;
-    for(auto&pt:orig.outer)p.emplace_back(pt.x(),pt.y());
+    for(auto&pt:orig.outer)p.emplace_back(pt[0],pt.y());
     ps.push_back(p);
     auto inf=InflatePaths(ps,mx,JoinType::Round,EndType::Polygon);
     if(inf.empty())return{false,{},0};

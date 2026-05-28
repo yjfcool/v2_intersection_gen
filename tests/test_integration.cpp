@@ -122,11 +122,11 @@ TEST_CASE("Integration: start/end tangent G1 continuity", "[integration]") {
 
     // Tangent at start should point roughly east (+x)
     Vec2d start_tan = cc.curve->startTan();
-    REQUIRE(start_tan.x() > 0.7);
+    REQUIRE(start_tan[0] > 0.7);
 
     // Tangent at end should also point roughly east
     Vec2d end_tan = cc.curve->endTan();
-    REQUIRE(end_tan.x() > 0.7);
+    REQUIRE(end_tan[0] > 0.7);
 }
 
 TEST_CASE("Integration: curve stays inside fence", "[integration]") {

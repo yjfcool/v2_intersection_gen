@@ -6,8 +6,8 @@
 
 static Polygon2d makeSquarePoly(Vec2d c, double half) {
     Polygon2d p;
-    p.outer = {{c.x()-half,c.y()-half},{c.x()+half,c.y()-half},
-               {c.x()+half,c.y()+half},{c.x()-half,c.y()+half}};
+    p.outer = {{c[0]-half,c[1]-half},{c[0]+half,c[1]-half},
+               {c[0]+half,c[1]+half},{c[0]-half,c[1]+half}};
     return p;
 }
 

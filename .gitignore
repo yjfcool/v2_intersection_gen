@@ -1,0 +1,10 @@
+/.idea/
+node_modules
+*.project
+*.classpath
+.settings/
+.vscode/
+.claude/
+cmake-build-debug/
+depends/
+src/others/

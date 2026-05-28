@@ -16,7 +16,7 @@
 inline std::vector<ShapePoint> toArray(const std::vector<Vec2d>& points) {
     std::vector<ShapePoint> shppoints;
     for (auto p : points) {
-        shppoints.emplace_back(ShapePoint{p.x(), p.y(), 0.0});
+        shppoints.emplace_back(ShapePoint{p[0], p[1], 0.0});
     }
     return shppoints;
 };

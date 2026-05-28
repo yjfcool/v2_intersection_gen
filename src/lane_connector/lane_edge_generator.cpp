@@ -8,7 +8,7 @@ static std::vector<Vec2d> offsetPL(const std::vector<Vec2d>&pts,double off){
         if(i==0)tan=(pts[1]-pts[0]).normalized();
         else if(i==n-1)tan=(pts[n-1]-pts[n-2]).normalized();
         else tan=(pts[i+1]-pts[i-1]).normalized();
-        Vec2d nm{-tan.y(),tan.x()};
+        Vec2d nm{-tan[1],tan[0]};
         out.push_back(pts[i]+off*nm);
     }
     return out;

@@ -8,7 +8,7 @@ double localCurvature(const Vec2d&a,const Vec2d&b,const Vec2d&c){
     double area=0.5*std::abs(cross2d(b-a,c-a));
     double den=ab*bc*ac;return den>1e-12?(2*area/den):0.0;}
 Vec2d circumcenter(const Vec2d&a,const Vec2d&b,const Vec2d&c){
-    double ax=a.x(),ay=a.y(),bx=b.x(),by=b.y(),cx=c.x(),cy=c.y();
+    double ax=a[0],ay=a[1],bx=b[0],by=b[1],cx=c[0],cy=c[1];
     double D=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));
     if(std::abs(D)<1e-12)return 0.5*(a+c);
     double ux=((ax*ax+ay*ay)*(by-cy)+(bx*bx+by*by)*(cy-ay)+(cx*cx+cy*cy)*(ay-by))/D;

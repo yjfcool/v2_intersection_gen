@@ -45,8 +45,8 @@ static Vec2d clampTangent(const Vec2d& tan, const Vec2d& ref, double max_a) {
     if (t.dot(ref) >= std::cos(max_a)) return t;
     double sg = cross2d(ref, t) >= 0 ? 1.0 : -1.0;
     double ca = std::cos(max_a), sa = std::sin(max_a);
-    return Vec2d(ref.x()*ca - sg*ref.y()*sa,
-                 ref.x()*sa*sg + ref.y()*ca);
+    return Vec2d(ref[0]*ca - sg*ref[1]*sa,
+                 ref[0]*sa*sg + ref[1]*ca);
 }
 
 // SDF-sampled straight line clearance check.
@@ -93,7 +93,7 @@ static ObstacleAABB probeObstacleAABB(const SDFField& sdf,
     double len = along.norm();
     if (len < 1e-6) return box;
     along = along * (1.0/len);
-    Vec2d perp{-along.y(), along.x()};
+    Vec2d perp{-along[1], along[0]};
     // Sweep width: use a fixed narrow strip (one lane width = 3.5m each side)
     // to avoid capturing obstacles far off the path axis.  A large sweep
     // caused the AABB to span the entire junction when multiple obstacles exist,
@@ -130,7 +130,7 @@ static Vec2d computeApex(const ObstacleAABB& box,
     double len = along.norm();
     if (len < 1e-6) return 0.5*(p0+p1);
     along = along * (1.0/len);
-    Vec2d perp{-along.y(), along.x()};   // left normal (unit vector)
+    Vec2d perp{-along[1], along[0]};   // left normal (unit vector)
 
     // Longitudinal midpoint of obstacle box (world coords → project onto path axis)
     // The box stores world coordinates of sampled points, so we must project
@@ -219,7 +219,7 @@ static int chooseSide(const SDFField& sdf,
                        const Vec2d& t0_hint = Vec2d(0,0))
 {
     Vec2d along = (p1 - p0).normalized();
-    Vec2d perp{-along.y(), along.x()};   // LEFT of path direction
+    Vec2d perp{-along[1], along[0]};   // LEFT of path direction
 
     // ── Side selection: RHT centre-priority with obstacle position awareness ──
     //
@@ -451,7 +451,7 @@ static BezierCurve geometricInitLevel2(const Vec2d& p0, const Vec2d& t0,
         return c;
     }
     along = along * (1.0/len);
-    Vec2d perp{-along.y(), along.x()};
+    Vec2d perp{-along[1], along[0]};
 
     // RHT centre-priority: prefer bypassing toward the junction centre (0,0),
     // unless the obstacle is ON the centre side (then must go outer).
@@ -623,7 +623,7 @@ BezierCurve buildTwoSegmentUTurn(const Vec2d& p0, const Vec2d& t0,
     Vec2d T1 = t1.normalized();
 
     // Lateral distance between p0 and p1 (perpendicular to entry direction)
-    Vec2d perp_left{-T0.y(), T0.x()};   // left perpendicular of entry direction
+    Vec2d perp_left{-T0[1], T0[0]};   // left perpendicular of entry direction
 
     // Determine which side p1 is on relative to p0's entry direction.
     // For a standard left U-turn, p1 is to the LEFT of t0.
@@ -672,7 +672,7 @@ BezierCurve buildTwoSegmentUTurn(const Vec2d& p0, const Vec2d& t0,
     // Apex tangent: lateral direction at the top of the U-turn arc.
     // This should be perpendicular to the forward direction, pointing from
     // p0-side towards p1-side to maintain consistent arc orientation.
-    Vec2d apex_perp{-forward_dir.y(), forward_dir.x()};  // left of forward
+    Vec2d apex_perp{-forward_dir[1], forward_dir[0]};  // left of forward
     // Determine correct lateral sign: apex tangent should point from the
     // p0 side of the arc towards the p1 side
     double sign = (p1 - p0).dot(apex_perp);
