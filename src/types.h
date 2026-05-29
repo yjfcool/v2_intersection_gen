@@ -109,7 +109,7 @@ using InterId = std::string;
 using AttrMap = std::map<std::string, std::string>;
 
 enum class GroupRole { Entry, Exit };
-enum class TurnType { UTurnLeft = 0, TurnLeft, Straight, TurnRight, UTurnRight };
+enum class ConnTurnType { Unknown = 0, TurnLeft, UTurnLeft, Straight, TurnRight, UTurnRight };
 
 struct LaneEdge {
     LaneEdgeId id;
@@ -150,7 +150,7 @@ struct Connectivity {
     ConnId id;
     LaneId entry_lane_id;
     LaneId exit_lane_id;
-    TurnType turn_type = TurnType::Straight;
+    ConnTurnType turn_type = ConnTurnType::Straight;
 
     LaneGroupId enterGroupId;
     LaneGroupId exitGroupId;
@@ -203,7 +203,7 @@ struct ConnectivityCurve {
     ConnId id;
     LaneId entry_lane_id;
     LaneId exit_lane_id;
-    TurnType turn_type = TurnType::Straight;
+    ConnTurnType turn_type = ConnTurnType::Straight;
     std::optional<BezierCurve> curve; // BezierCurve is complete above
     CurveStatus status = CurveStatus::OK;
     ViolationInfo violation;
@@ -262,6 +262,17 @@ struct IntersectionInput {
 
 // ── AdaptiveRefineResult forward-declared here ───────────────
 struct SDFField; // forward
+
+struct  LBFGSConfig {
+    int max_iter = 200; // reduced: good init+analytic grad converges faster
+    int history_size = 10;
+    int max_ls_iter = 20;
+    double grad_tol = 1e-4; // loosened: curve quality doesn't need 1e-5
+    double func_tol = 1e-7;
+    double wolfe_c1 = 1e-4;
+    double wolfe_c2 = 0.9;
+};
+
 struct AdaptiveRefineResult {
     BezierCurve curve;
     bool was_split = false;

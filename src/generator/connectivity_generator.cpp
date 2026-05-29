@@ -70,9 +70,9 @@ std::pair<Vec2d,Vec2d> IntersectionInput::exitPtDir(const LaneId&lid)const{
 }
 
 // ── GlobalCoordinator ─────────────────────────────────────────
-int GlobalCoordinator::turnPriority(TurnType t){
-    switch(t){case TurnType::Straight:return 0;case TurnType::TurnLeft:return 1;
-    case TurnType::TurnRight:return 2;default:return 3;}
+int GlobalCoordinator::turnPriority(ConnTurnType t){
+    switch(t){case ConnTurnType::Straight:return 0;case ConnTurnType::TurnLeft:return 1;
+    case ConnTurnType::TurnRight:return 2;default:return 3;}
 }
 void GlobalCoordinator::build(const std::vector<Connectivity>&conns,const IntersectionInput&){
     std::map<int,OptGroup>pm;
@@ -286,7 +286,7 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
 
     BezierCurve opt=optimiseCurve(cost,solver_,initial,4);
 
-    bool is_uturn = (conn.turn_type==TurnType::UTurnLeft||conn.turn_type==TurnType::UTurnRight);
+    bool is_uturn = (conn.turn_type==ConnTurnType::UTurnLeft||conn.turn_type==ConnTurnType::UTurnRight);
     // Skip elasticBandSmooth for:
     // 1. U-turns (high curvature, elasticBand produces oscillations)
     // 2. Multi-segment curves (Level-1 arch, Level-2): elasticBand cannot preserve

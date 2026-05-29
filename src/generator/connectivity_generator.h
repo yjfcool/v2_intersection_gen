@@ -14,7 +14,7 @@ public:
     void addSoftObstacles(SDFField&,const std::vector<ConnectivityCurve>&,double sc=0.3)const;
 private:
     std::vector<OptGroup> groups_;
-    static int turnPriority(TurnType);
+    static int turnPriority(ConnTurnType);
 };
 class ConnectivityGenerator{
 public:

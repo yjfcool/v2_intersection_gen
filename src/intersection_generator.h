@@ -1,6 +1,5 @@
 #pragma once
 #include "types.h"
-#include "optimizer/lbfgs_solver.h"
 
 struct ValidationReport {
     std::vector<std::string> errors, warnings;

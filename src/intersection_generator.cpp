@@ -16,32 +16,32 @@ IntersectionGenerator::IntersectionGenerator(): cfg_{} {
 IntersectionGenerator::IntersectionGenerator(const Config& cfg): cfg_(cfg) {
 }
 
-inline const char* turnTypeName(TurnType t) {
+inline const char* turnTypeName(ConnTurnType t) {
     switch (t) {
-    case TurnType::UTurnLeft: return "UTurnLeft";
-    case TurnType::TurnLeft: return "TurnLeft";
-    case TurnType::Straight: return "Straight";
-    case TurnType::TurnRight: return "TurnRight";
-    case TurnType::UTurnRight: return "UTurnRight";
+    case ConnTurnType::UTurnLeft: return "UTurnLeft";
+    case ConnTurnType::TurnLeft: return "TurnLeft";
+    case ConnTurnType::Straight: return "Straight";
+    case ConnTurnType::TurnRight: return "TurnRight";
+    case ConnTurnType::UTurnRight: return "UTurnRight";
     }
     return "Unknown";
 }
 
-static TurnType inferTurn(const Connectivity& conn, const IntersectionInput& inp) {
+static ConnTurnType inferTurn(const Connectivity& conn, const IntersectionInput& inp) {
     auto [p0,t0] = inp.entryPtDir(conn.entry_lane_id);
     auto [p1,t1] = inp.exitPtDir(conn.exit_lane_id);
     Vec2d te = (p1 - p0);
     if (te.norm() < 1e-6)
-        return TurnType::Straight;
+        return ConnTurnType::Straight;
     te.normalize();
     double c = cross2d(t0, te), dot = t0.dot(te);
     if (dot < -0.5)
-        return TurnType::UTurnLeft;
+        return ConnTurnType::UTurnLeft;
     if (c > 0.5)
-        return TurnType::TurnLeft;
+        return ConnTurnType::TurnLeft;
     if (c < -0.5)
-        return TurnType::TurnRight;
-    return TurnType::Straight;
+        return ConnTurnType::TurnRight;
+    return ConnTurnType::Straight;
 }
 
 ValidationReport validateTopology(const IntersectionInput& input) {
@@ -52,7 +52,7 @@ ValidationReport validateTopology(const IntersectionInput& input) {
                 + std::to_string(g.lanes.size() + 1) + ", got "
                 + std::to_string(g.boundaries.size()) + ")");
     for (auto& conn : input.connectivities) {
-        TurnType inf = inferTurn(conn, input);
+        ConnTurnType inf = inferTurn(conn, input);
         if (std::abs((int)conn.turn_type - (int)inf) > 1)
             r.warnings.push_back("Connectivity " + conn.id + ": declared=" + turnTypeName(conn.turn_type)
                 + " geometry=" + turnTypeName(inf));

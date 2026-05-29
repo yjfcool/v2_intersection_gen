@@ -43,9 +43,9 @@ static IntersectionInput makeSimpleInput() {
     inp.lanes.push_back(r1); inp.lanes.push_back(r2);
 
     Connectivity c1; c1.id="C1"; c1.entry_lane_id="L1";
-                     c1.exit_lane_id="R1"; c1.turn_type=TurnType::Straight;
+                     c1.exit_lane_id="R1"; c1.turn_type=ConnTurnType::Straight;
     Connectivity c2; c2.id="C2"; c2.entry_lane_id="L2";
-                     c2.exit_lane_id="R2"; c2.turn_type=TurnType::TurnLeft;
+                     c2.exit_lane_id="R2"; c2.turn_type=ConnTurnType::TurnLeft;
     inp.connectivities = {c1, c2};
     return inp;
 }
@@ -83,7 +83,7 @@ TEST_CASE("ClusterOrderSolver: Straight before Left in order", "[cluster]") {
 TEST_CASE("ClusterOrderSolver: UTurn pair is structurally exempt", "[cluster]") {
     IntersectionInput inp = makeSimpleInput();
     Connectivity cu; cu.id="CU"; cu.entry_lane_id="L1";
-                     cu.exit_lane_id="R1"; cu.turn_type=TurnType::UTurnLeft;
+                     cu.exit_lane_id="R1"; cu.turn_type=ConnTurnType::UTurnLeft;
     inp.connectivities.push_back(cu);
 
     ClusterOrderSolver cs;

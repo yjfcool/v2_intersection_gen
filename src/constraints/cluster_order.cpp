@@ -6,13 +6,13 @@
 
 void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
                                const std::vector<Lane>&, const std::vector<LaneGroup>&) {
-    auto pri = [](TurnType t) {
+    auto pri = [](ConnTurnType t) {
         switch (t) {
-        case TurnType::UTurnLeft: return 0;
-        case TurnType::TurnLeft: return 1;
-        case TurnType::Straight: return 2;
-        case TurnType::TurnRight: return 3;
-        case TurnType::UTurnRight: return 4;
+        case ConnTurnType::UTurnLeft: return 0;
+        case ConnTurnType::TurnLeft: return 1;
+        case ConnTurnType::Straight: return 2;
+        case ConnTurnType::TurnRight: return 3;
+        case ConnTurnType::UTurnRight: return 4;
         }
         return 2;
     };
@@ -20,7 +20,7 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
         entry_order_[c.entry_lane_id].push_back(c.id);
     for (auto& [lid,cids] : entry_order_) {
         std::sort(cids.begin(), cids.end(), [&](const ConnId& a, const ConnId& b) {
-            TurnType ta = TurnType::Straight, tb = TurnType::Straight;
+            ConnTurnType ta = ConnTurnType::Straight, tb = ConnTurnType::Straight;
             for (auto& c : conns) {
                 if (c.id == a)
                     ta = c.turn_type;
@@ -37,13 +37,13 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
                 CurvePair p;
                 p.id_a = cids[i];
                 p.id_b = cids[j];
-                TurnType ta = TurnType::Straight, tb = TurnType::Straight;
+                ConnTurnType ta = ConnTurnType::Straight, tb = ConnTurnType::Straight;
                 for (auto& c : conns) {
                     if (c.id == p.id_a) ta = c.turn_type;
                     if (c.id == p.id_b) tb = c.turn_type;
                 }
-                bool au = (ta == TurnType::UTurnLeft || ta == TurnType::UTurnRight);
-                bool bu = (tb == TurnType::UTurnLeft || tb == TurnType::UTurnRight);
+                bool au = (ta == ConnTurnType::UTurnLeft || ta == ConnTurnType::UTurnRight);
+                bool bu = (tb == ConnTurnType::UTurnLeft || tb == ConnTurnType::UTurnRight);
                 if (au || bu)
                     p.exempt = CrossExemption::StructuralCross;
                 pairs_.push_back(p);

@@ -113,16 +113,16 @@ static IntersectionInput build4Way(int lanes_per_arm = 1,
 
     // N→S straight, N→E left, N→W right (for single-lane arm)
     // Repeat for each arm; full 12 connectivity 1:1
-    struct ConnSpec { int from,to; TurnType tt; };
+    struct ConnSpec { int from,to; ConnTurnType tt; };
     std::vector<ConnSpec> specs = {
         // N inbound
-        {0,1,TurnType::Straight},{0,2,TurnType::TurnLeft},{0,3,TurnType::TurnRight},
+        {0,1,ConnTurnType::Straight},{0,2,ConnTurnType::TurnLeft},{0,3,ConnTurnType::TurnRight},
         // S inbound
-        {1,0,TurnType::Straight},{1,3,TurnType::TurnLeft},{1,2,TurnType::TurnRight},
+        {1,0,ConnTurnType::Straight},{1,3,ConnTurnType::TurnLeft},{1,2,ConnTurnType::TurnRight},
         // E inbound
-        {2,3,TurnType::Straight},{2,1,TurnType::TurnLeft},{2,0,TurnType::TurnRight},
+        {2,3,ConnTurnType::Straight},{2,1,ConnTurnType::TurnLeft},{2,0,ConnTurnType::TurnRight},
         // W inbound
-        {3,2,TurnType::Straight},{3,0,TurnType::TurnLeft},{3,1,TurnType::TurnRight},
+        {3,2,ConnTurnType::Straight},{3,0,ConnTurnType::TurnLeft},{3,1,ConnTurnType::TurnRight},
     };
     for (auto& s : specs)
         addConn(inp, entry[s.from][0], exitl[s.to][0], s.tt);
@@ -180,9 +180,9 @@ TEST_CASE("4-way: multi-lane (2 lanes per arm) — 1:1 connectivity", "[4way][mu
     // 8 connections per quadrant × 4 arms = 16 total (simplified)
     for (int a=0;a<4;++a) {
         int b=(a+1)%4, c=(a+2)%4, d=(a+3)%4;
-        addConn(inp, entry[a][0], exitl[b][0], TurnType::TurnLeft);
-        addConn(inp, entry[a][1], exitl[c][1], TurnType::Straight);
-        addConn(inp, entry[a][1], exitl[d][1], TurnType::TurnRight);
+        addConn(inp, entry[a][0], exitl[b][0], ConnTurnType::TurnLeft);
+        addConn(inp, entry[a][1], exitl[c][1], ConnTurnType::Straight);
+        addConn(inp, entry[a][1], exitl[d][1], ConnTurnType::TurnRight);
     }
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -208,14 +208,14 @@ TEST_CASE("4-way: 1:N connectivity — one entry to two exits", "[4way][1toN]")
     for (int a=0;a<4;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
 
     // N lane splits to both S (straight) and E (left)
-    addConn(inp, entry[0][0], exitl[1][0], TurnType::Straight);
-    addConn(inp, entry[0][0], exitl[2][0], TurnType::TurnLeft);
+    addConn(inp, entry[0][0], exitl[1][0], ConnTurnType::Straight);
+    addConn(inp, entry[0][0], exitl[2][0], ConnTurnType::TurnLeft);
     // S lane splits to N and W
-    addConn(inp, entry[1][0], exitl[0][0], TurnType::Straight);
-    addConn(inp, entry[1][0], exitl[3][0], TurnType::TurnLeft);
+    addConn(inp, entry[1][0], exitl[0][0], ConnTurnType::Straight);
+    addConn(inp, entry[1][0], exitl[3][0], ConnTurnType::TurnLeft);
     // E,W: straight only
-    addConn(inp, entry[2][0], exitl[3][0], TurnType::Straight);
-    addConn(inp, entry[3][0], exitl[2][0], TurnType::Straight);
+    addConn(inp, entry[2][0], exitl[3][0], ConnTurnType::Straight);
+    addConn(inp, entry[3][0], exitl[2][0], ConnTurnType::Straight);
 
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -241,14 +241,14 @@ TEST_CASE("4-way: N:1 connectivity — two entries merge to one exit", "[4way][N
     for (int a=0;a<4;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
 
     // N lane[0] + N lane[1] → S exit[0] (merge: straight + straight-inner)
-    addConn(inp, entry[0][0], exitl[1][0], TurnType::Straight);
-    addConn(inp, entry[0][1], exitl[1][0], TurnType::Straight);
+    addConn(inp, entry[0][0], exitl[1][0], ConnTurnType::Straight);
+    addConn(inp, entry[0][1], exitl[1][0], ConnTurnType::Straight);
     // S → N
-    addConn(inp, entry[1][0], exitl[0][0], TurnType::Straight);
-    addConn(inp, entry[1][1], exitl[0][0], TurnType::Straight);
+    addConn(inp, entry[1][0], exitl[0][0], ConnTurnType::Straight);
+    addConn(inp, entry[1][1], exitl[0][0], ConnTurnType::Straight);
     // E → W, W → E
-    addConn(inp, entry[2][0], exitl[3][0], TurnType::Straight);
-    addConn(inp, entry[3][0], exitl[2][0], TurnType::Straight);
+    addConn(inp, entry[2][0], exitl[3][0], ConnTurnType::Straight);
+    addConn(inp, entry[3][0], exitl[2][0], ConnTurnType::Straight);
 
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -275,9 +275,9 @@ TEST_CASE("4-way: U-turn connections", "[4way][uturn]")
     for (int a=0;a<4;++a) {
         int opp=(a+2)%4;
         // Inner lane → U-turn back to same arm exit inner lane
-        addConn(inp, entry[a][0], exitl[a][0], TurnType::UTurnLeft);
+        addConn(inp, entry[a][0], exitl[a][0], ConnTurnType::UTurnLeft);
         // Outer lane → straight to opposite
-        addConn(inp, entry[a][1], exitl[opp][1], TurnType::Straight);
+        addConn(inp, entry[a][1], exitl[opp][1], ConnTurnType::Straight);
     }
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -365,11 +365,11 @@ static IntersectionInput buildTJunction(int lanes_per_arm = 1, double lane_w = 3
     addRoadEdgeBoundary(inp,"BOT", {-14,-14},{14,-14});
 
     // 6 connections: each arm → each other arm
-    struct CS{int f,t;TurnType tt;};
+    struct CS{int f,t;ConnTurnType tt;};
     std::vector<CS> specs = {
-        {0,1,TurnType::TurnLeft},{0,2,TurnType::TurnRight},     // N→E, N→W
-        {1,2,TurnType::Straight},{1,0,TurnType::TurnRight},     // E→W, E→N
-        {2,1,TurnType::Straight},{2,0,TurnType::TurnLeft},      // W→E, W→N
+        {0,1,ConnTurnType::TurnLeft},{0,2,ConnTurnType::TurnRight},     // N→E, N→W
+        {1,2,ConnTurnType::Straight},{1,0,ConnTurnType::TurnRight},     // E→W, E→N
+        {2,1,ConnTurnType::Straight},{2,0,ConnTurnType::TurnLeft},      // W→E, W→N
     };
     for (auto& s:specs) addConn(inp, entry[s.f][0], exitl[s.t][0], s.tt);
     return inp;
@@ -418,16 +418,16 @@ TEST_CASE("T-junction: 2-lane arms with 1:N split at branch", "[T][1toN][multila
     for (int a=0;a<3;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
 
     // Branch N → left+right (1:2)
-    addConn(inp, entry[0][0], exitl[1][0], TurnType::TurnLeft);
-    addConn(inp, entry[0][0], exitl[2][0], TurnType::TurnRight);
+    addConn(inp, entry[0][0], exitl[1][0], ConnTurnType::TurnLeft);
+    addConn(inp, entry[0][0], exitl[2][0], ConnTurnType::TurnRight);
     // E → W (both lanes straight), E → N (inner lane only)
-    addConn(inp, entry[1][0], exitl[2][0], TurnType::Straight);
-    addConn(inp, entry[1][1], exitl[2][1], TurnType::Straight);
-    addConn(inp, entry[1][0], exitl[0][0], TurnType::TurnRight);
+    addConn(inp, entry[1][0], exitl[2][0], ConnTurnType::Straight);
+    addConn(inp, entry[1][1], exitl[2][1], ConnTurnType::Straight);
+    addConn(inp, entry[1][0], exitl[0][0], ConnTurnType::TurnRight);
     // W → E, W → N
-    addConn(inp, entry[2][0], exitl[1][0], TurnType::Straight);
-    addConn(inp, entry[2][1], exitl[1][1], TurnType::Straight);
-    addConn(inp, entry[2][0], exitl[0][1], TurnType::TurnLeft);
+    addConn(inp, entry[2][0], exitl[1][0], ConnTurnType::Straight);
+    addConn(inp, entry[2][1], exitl[1][1], ConnTurnType::Straight);
+    addConn(inp, entry[2][0], exitl[0][1], ConnTurnType::TurnLeft);
 
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -485,11 +485,11 @@ static IntersectionInput buildYJunction(double lane_w = 3.5)
     for (int a=0;a<3;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
 
     // 6 connections
-    struct CS{int f,t;TurnType tt;};
+    struct CS{int f,t;ConnTurnType tt;};
     std::vector<CS> specs={
-        {0,1,TurnType::TurnLeft},{0,2,TurnType::TurnRight},
-        {1,0,TurnType::TurnRight},{1,2,TurnType::TurnLeft},
-        {2,0,TurnType::TurnLeft},{2,1,TurnType::TurnRight},
+        {0,1,ConnTurnType::TurnLeft},{0,2,ConnTurnType::TurnRight},
+        {1,0,ConnTurnType::TurnRight},{1,2,ConnTurnType::TurnLeft},
+        {2,0,ConnTurnType::TurnLeft},{2,1,ConnTurnType::TurnRight},
     };
     for (auto& s:specs) addConn(inp, entry[s.f][0], exitl[s.t][0], s.tt);
     return inp;
@@ -540,11 +540,11 @@ TEST_CASE("Y-junction: 1:N — one arm splits to both others", "[Y][1toN]")
     for(int a=0;a<3;++a){auto[en,ex]=buildArm(arms[a],inp);entry[a]=en;exitl[a]=ex;}
 
     // A→B, A→C (1:2 split)
-    addConn(inp,entry[0][0],exitl[1][0],TurnType::TurnLeft);
-    addConn(inp,entry[0][0],exitl[2][0],TurnType::TurnRight);
+    addConn(inp,entry[0][0],exitl[1][0],ConnTurnType::TurnLeft);
+    addConn(inp,entry[0][0],exitl[2][0],ConnTurnType::TurnRight);
     // B→C, C→B
-    addConn(inp,entry[1][0],exitl[2][0],TurnType::TurnLeft);
-    addConn(inp,entry[2][0],exitl[1][0],TurnType::TurnRight);
+    addConn(inp,entry[1][0],exitl[2][0],ConnTurnType::TurnLeft);
+    addConn(inp,entry[2][0],exitl[1][0],ConnTurnType::TurnRight);
 
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -614,12 +614,12 @@ static IntersectionInput buildRoundabout(double ring_r = 8.0,
     // Clockwise connections (right-hand traffic on roundabout):
     //  N→E (right turn), N→S (straight through ring), N→W (left through ring)
     //  + mirror for E, S, W
-    struct CS{int f,t;TurnType tt;};
+    struct CS{int f,t;ConnTurnType tt;};
     std::vector<CS> specs = {
-        {0,2,TurnType::TurnRight},{0,1,TurnType::Straight},{0,3,TurnType::TurnLeft},
-        {2,1,TurnType::TurnRight},{2,0,TurnType::Straight},{2,3,TurnType::TurnLeft},
-        {1,3,TurnType::TurnRight},{1,0,TurnType::Straight},{1,2,TurnType::TurnLeft},
-        {3,0,TurnType::TurnRight},{3,1,TurnType::Straight},{3,2,TurnType::TurnLeft},
+        {0,2,ConnTurnType::TurnRight},{0,1,ConnTurnType::Straight},{0,3,ConnTurnType::TurnLeft},
+        {2,1,ConnTurnType::TurnRight},{2,0,ConnTurnType::Straight},{2,3,ConnTurnType::TurnLeft},
+        {1,3,ConnTurnType::TurnRight},{1,0,ConnTurnType::Straight},{1,2,ConnTurnType::TurnLeft},
+        {3,0,ConnTurnType::TurnRight},{3,1,ConnTurnType::Straight},{3,2,ConnTurnType::TurnLeft},
     };
     for (auto& s:specs) addConn(inp, entry[s.f], exitl[s.t], s.tt);
 
@@ -754,16 +754,16 @@ TEST_CASE("T-junction: U-turn on branch arm", "[T][uturn]")
     for (int a=0;a<3;++a){auto[en,ex]=buildArm(arms[a],inp);entry[a]=en;exitl[a]=ex;}
 
     // Branch inner lane U-turns back
-    addConn(inp, entry[0][0], exitl[0][0], TurnType::UTurnLeft);
+    addConn(inp, entry[0][0], exitl[0][0], ConnTurnType::UTurnLeft);
     // Branch outer lane → main road
-    addConn(inp, entry[0][1], exitl[1][0], TurnType::TurnLeft);
-    addConn(inp, entry[0][1], exitl[2][0], TurnType::TurnRight);
+    addConn(inp, entry[0][1], exitl[1][0], ConnTurnType::TurnLeft);
+    addConn(inp, entry[0][1], exitl[2][0], ConnTurnType::TurnRight);
     // Main road through
-    addConn(inp, entry[1][0], exitl[2][0], TurnType::Straight);
-    addConn(inp, entry[2][0], exitl[1][0], TurnType::Straight);
+    addConn(inp, entry[1][0], exitl[2][0], ConnTurnType::Straight);
+    addConn(inp, entry[2][0], exitl[1][0], ConnTurnType::Straight);
     // Main road turns onto branch
-    addConn(inp, entry[1][0], exitl[0][1], TurnType::TurnRight);
-    addConn(inp, entry[2][0], exitl[0][1], TurnType::TurnLeft);
+    addConn(inp, entry[1][0], exitl[0][1], ConnTurnType::TurnRight);
+    addConn(inp, entry[2][0], exitl[0][1], ConnTurnType::TurnLeft);
 
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -809,9 +809,9 @@ TEST_CASE("Y-junction: all U-turns (unusual but valid)", "[Y][uturn]")
     // Inner lanes U-turn, outer lanes do cross-arm turns
     for(int a=0;a<3;++a){
         int b=(a+1)%3,c=(a+2)%3;
-        addConn(inp,entry[a][0],exitl[a][0],TurnType::UTurnLeft);
-        addConn(inp,entry[a][1],exitl[b][1],TurnType::TurnLeft);
-        addConn(inp,entry[a][1],exitl[c][1],TurnType::TurnRight);
+        addConn(inp,entry[a][0],exitl[a][0],ConnTurnType::UTurnLeft);
+        addConn(inp,entry[a][1],exitl[b][1],ConnTurnType::TurnLeft);
+        addConn(inp,entry[a][1],exitl[c][1],ConnTurnType::TurnRight);
     }
     IntersectionGenerator gen;
     IntersectionOutput out;
@@ -838,10 +838,10 @@ TEST_CASE("4-way: all turn types present simultaneously", "[4way][all_turns]")
 
     for(int a=0;a<4;++a){
         int opp=(a+2)%4,left=(a+1)%4,right=(a+3)%4;
-        addConn(inp,entry[a][0],exitl[a][0],   TurnType::UTurnLeft);   // inner: U-turn
-        addConn(inp,entry[a][1],exitl[left][1], TurnType::TurnLeft);   // middle: left
-        addConn(inp,entry[a][2],exitl[opp][2],  TurnType::Straight);   // outer: straight
-        addConn(inp,entry[a][1],exitl[right][1],TurnType::TurnRight);  // middle: right
+        addConn(inp,entry[a][0],exitl[a][0],   ConnTurnType::UTurnLeft);   // inner: U-turn
+        addConn(inp,entry[a][1],exitl[left][1], ConnTurnType::TurnLeft);   // middle: left
+        addConn(inp,entry[a][2],exitl[opp][2],  ConnTurnType::Straight);   // outer: straight
+        addConn(inp,entry[a][1],exitl[right][1],ConnTurnType::TurnRight);  // middle: right
     }
     IntersectionGenerator gen;
     IntersectionOutput out;

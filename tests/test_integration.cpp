@@ -54,7 +54,7 @@ static IntersectionInput makeTwoDirectionInput(bool add_obstacle = false) {
     // Connectivity: straight through
     Connectivity c;
     c.id="CONN1"; c.entry_lane_id="LE"; c.exit_lane_id="LR";
-    c.turn_type=TurnType::Straight;
+    c.turn_type=ConnTurnType::Straight;
     inp.connectivities = {c};
 
     // Coarse area
@@ -293,7 +293,7 @@ static IntersectionInput makeFourWayInput() {
         c.id = "C"+std::to_string(idx++);
         c.entry_lane_id = "LE_"+from;
         c.exit_lane_id  = "LR_"+to;
-        c.turn_type     = TurnType::Straight;
+        c.turn_type     = ConnTurnType::Straight;
         inp.connectivities.push_back(c);
     }
 

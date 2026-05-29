@@ -97,7 +97,7 @@ TEST_CASE("makeFallbackCurve: topological block → Infeasible", "[infeasibility
 
     Connectivity conn;
     conn.id="X"; conn.entry_lane_id="L1"; conn.exit_lane_id="R1";
-    conn.turn_type = TurnType::Straight;
+    conn.turn_type = ConnTurnType::Straight;
 
     auto cc = makeFallbackCurve(pre, conn, Vec2d(0,0), Vec2d(5,0));
     REQUIRE(cc.status == CurveStatus::Infeasible);
@@ -111,7 +111,7 @@ TEST_CASE("makeFallbackCurve: sandwich → Degraded straight line", "[infeasibil
 
     Connectivity conn;
     conn.id="Y"; conn.entry_lane_id="L1"; conn.exit_lane_id="R1";
-    conn.turn_type = TurnType::Straight;
+    conn.turn_type = ConnTurnType::Straight;
 
     Vec2d p0(0,0), p1(5,0);
     auto cc = makeFallbackCurve(pre, conn, p0, p1);

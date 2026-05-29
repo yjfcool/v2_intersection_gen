@@ -2,15 +2,15 @@
 #include "types.h"
 #include <functional>
 
-struct LBFGSConfig {
-    int max_iter = 200; // reduced: good init+analytic grad converges faster
-    int history_size = 10;
-    int max_ls_iter = 20;
-    double grad_tol = 1e-4; // loosened: curve quality doesn't need 1e-5
-    double func_tol = 1e-7;
-    double wolfe_c1 = 1e-4;
-    double wolfe_c2 = 0.9;
-};
+// struct  LBFGSConfig {
+//     int max_iter = 200; // reduced: good init+analytic grad converges faster
+//     int history_size = 10;
+//     int max_ls_iter = 20;
+//     double grad_tol = 1e-4; // loosened: curve quality doesn't need 1e-5
+//     double func_tol = 1e-7;
+//     double wolfe_c1 = 1e-4;
+//     double wolfe_c2 = 0.9;
+// };
 
 struct SolveResult {
     VecXd x;

@@ -119,7 +119,7 @@ buildArm(const ArmDef& arm, IntersectionInput& inp)
 static int gConnIdx = 0;
 inline void addConn(IntersectionInput& inp,
                     const LaneId& entry, const LaneId& exit,
-                    TurnType tt)
+                    ConnTurnType tt)
 {
     Connectivity c;
     c.id            = "C" + std::to_string(gConnIdx++);
