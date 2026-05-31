@@ -23,6 +23,8 @@ struct FenceRelaxResult {
     bool success = false;
     Polygon2d relaxed_fence;
     double max_expansion = 0;
+    FenceRelaxResult(bool success, const Polygon2d& relaxed_fence, double max_expansion)
+        : success(success), relaxed_fence(relaxed_fence) {}
 };
 
 FenceRelaxResult tryRelaxFence(const Polygon2d&, const std::vector<Boundary>&, const Vec2d&, double mx = 1.5);

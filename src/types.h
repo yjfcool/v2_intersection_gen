@@ -1,6 +1,6 @@
 #pragma once
 #include <Eigen/Dense>
-#include <optional>
+#include <memory>
 #include <string>
 #include <vector>
 #include <array>
@@ -9,6 +9,17 @@
 
 using Vec2d = Eigen::Vector2d;
 using VecXd = Eigen::VectorXd;
+
+inline std::vector<std::array<double,2>> toArray(const std::vector<Vec2d>& pts) {
+    std::vector<std::array<double,2>> arrpts;
+    for (auto p : pts) arrpts.emplace_back(std::array<double,2>{p[0], p[1]});
+    return arrpts;
+}
+inline std::vector<Vec2d> toArray(const std::vector<std::array<double,2>>& arrpts) {
+    std::vector<Vec2d> pts;
+    for (auto p : arrpts) pts.emplace_back(Vec2d{p[0], p[1]});
+    return pts;
+}
 
 // ── Geometry primitives ──────────────────────────────────────
 struct BoundingBox2d {
@@ -115,7 +126,7 @@ struct LaneEdge {
     LaneEdgeId id;
     LineString2d geometry;
     bool is_shared = false;
-    std::optional<std::pair<LaneId, LaneId>> shared_by;
+    std::shared_ptr<std::pair<LaneId, LaneId>> shared_by = nullptr;
     AttrMap attrs;
 
     // Vec2d connectionPt;
@@ -204,7 +215,7 @@ struct ConnectivityCurve {
     LaneId entry_lane_id;
     LaneId exit_lane_id;
     ConnTurnType turn_type = ConnTurnType::Straight;
-    std::optional<BezierCurve> curve; // BezierCurve is complete above
+    std::shared_ptr<BezierCurve> curve = nullptr; // BezierCurve is complete above
     CurveStatus status = CurveStatus::OK;
     ViolationInfo violation;
 
@@ -216,7 +227,7 @@ struct ConnectivityLaneEdge {
     LaneEdgeId id;
     LineString2d geometry;
     bool is_shared = false;
-    std::optional<std::pair<LaneId, LaneId>> shared_by; //边线左侧车道，边线右侧车道
+    std::shared_ptr<std::pair<LaneId, LaneId>> shared_by = nullptr; //边线左侧车道，边线右侧车道
 
     AttrMap attrs;
     // Vec2d connectionPt;

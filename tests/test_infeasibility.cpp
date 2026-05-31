@@ -101,7 +101,7 @@ TEST_CASE("makeFallbackCurve: topological block → Infeasible", "[infeasibility
 
     auto cc = makeFallbackCurve(pre, conn, Vec2d(0,0), Vec2d(5,0));
     REQUIRE(cc.status == CurveStatus::Infeasible);
-    REQUIRE(!cc.curve.has_value());
+    REQUIRE(!cc.curve);
 }
 
 TEST_CASE("makeFallbackCurve: sandwich → Degraded straight line", "[infeasibility]") {
@@ -116,7 +116,7 @@ TEST_CASE("makeFallbackCurve: sandwich → Degraded straight line", "[infeasibil
     Vec2d p0(0,0), p1(5,0);
     auto cc = makeFallbackCurve(pre, conn, p0, p1);
     REQUIRE(cc.status == CurveStatus::Degraded);
-    REQUIRE(cc.curve.has_value());
+    REQUIRE(cc.curve);
 
     // Straight line: endpoints match
     REQUIRE_THAT((cc.curve->startPt()-p0).norm(),

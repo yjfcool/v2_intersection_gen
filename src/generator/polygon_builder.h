@@ -19,6 +19,13 @@
  *  3. 按极角排序端点，连接成封闭多边形
  *  4. 相邻端点间若属同一边缘线则沿线连接，否则直连
  */
+struct EdgeEndpoint {
+    Vec2d   pt;
+    int     roadEdgeIdx = -1;
+    bool    isStart = true;
+
+    EdgeEndpoint(Vec2d _pt, int _idx, bool _start):pt(_pt), roadEdgeIdx(_idx), isStart(_start) {}
+};
 class IntersectionAreaBuilder {
     // 路口面顶点吸附容差(米),距离小于此值的顶点会被合并。取值范围：0.1~2.0
     double snapTolerance = 0.5;
@@ -76,7 +83,7 @@ public:
             if(inRange){
                 // 吸附到最近的车道边线端点
                 Vec2d snapped = snapToEdgePt(candidatePt, edgelines, inp, snapTolerance);
-                endpoints.push_back({snapped, i, isStart});
+                endpoints.emplace_back(EdgeEndpoint{snapped, i, isStart});
                 std::cout<<("Edge endpoint[" + std::to_string(i) + "]: ("
                     + std::to_string(snapped[0]) + "," + std::to_string(snapped[1]) + ")")<<std::endl;
             }
@@ -151,12 +158,6 @@ public:
     }
 
 private:
-    struct EdgeEndpoint {
-        Vec2d   pt;
-        int     roadEdgeIdx = -1;
-        bool    isStart = true;
-    };
-
     // 计算路口中心点（连接点的质心）
     Vec2d computeCenter(const IntersectionInput& inp,
                           const std::vector<ConnectivityCurve>& cls) const
@@ -240,7 +241,7 @@ private:
             for(auto& ep : endpoints){
                 if(dist(ep.pt,cp)<0.5){ dup=true; break; }
             }
-            if(!dup) endpoints.push_back({cp,-1,true});
+            if(!dup) endpoints.emplace_back(EdgeEndpoint{cp,-1,true});
         }
 
         // 补充中心线连接点的法线方向偏移点（近似边界点）
@@ -257,8 +258,8 @@ private:
                 if(dist(ep.pt,lp)<0.5) dupL=true;
                 if(dist(ep.pt,rp)<0.5) dupR=true;
             }
-            if(!dupL) endpoints.push_back({lp,-1,true});
-            if(!dupR) endpoints.push_back({rp,-1,true});
+            if(!dupL) endpoints.emplace_back(EdgeEndpoint{lp,-1,true});
+            if(!dupR) endpoints.emplace_back(EdgeEndpoint{rp,-1,true});
         }
     }
 

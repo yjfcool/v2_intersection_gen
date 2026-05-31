@@ -32,6 +32,10 @@ struct DbfField {
     char type = 'C'; // 'C'=字符串(Character), 'N'=数值(Numeric), 'F'=浮点数(Float)
     uint8_t length = 254; // 字段总长度
     uint8_t decimals = 0; // 小数位数（仅在 N 或 F 类型时有效）
+
+    DbfField(){};
+    DbfField(std::string _name, char _type, uint8_t _length, uint8_t _decimals)
+    : name(_name), type(_type), length(_length), decimals(_decimals) {}
 };
 
 struct ShapeRecord {
@@ -41,6 +45,11 @@ struct ShapeRecord {
     std::vector<ShapePoint> points; // 顶点坐标集合
     std::vector<int32_t> parts = {0}; // 每个 Part 的起始点索引
     double box[4] = {0, 0, 0, 0}; // 局部二维边界框 [Xmin, Ymin, Xmax, Ymax]
+
+    ShapeRecord(){};
+    ShapeRecord(int32_t _id, int32_t _shapeType, const std::vector<std::string> &_attributes,
+        const std::vector<ShapePoint> &_points, std::vector<int32_t> _parts = {0})
+        : id(_id), shapeType(_shapeType), attributes(_attributes), points(_points), parts(_parts) {}
 };
 
 class ShapefileEngine {
@@ -117,9 +126,6 @@ private:
     }
 
     static inline bool fileExists(const std::string& path) {
-        // 使用 C++17 标准库，底层自动适配 Windows(GetFileAttributesW) 和 Linux/macOS(stat)
-        //return std::filesystem::exists(path);
-        // 💡 备选方案：如果你的编译器非常老旧，不支持 C++17，请删掉上面一行并启用以下 C++11 兼容代码：
         std::ifstream f(path);
         return f.good();
     }
@@ -552,7 +558,14 @@ public:
         return true;
     }
 };
-
+inline std::string toWKT(std::vector<std::array<double, 2>> points, std::string id = "") {
+    std::stringstream ss;
+    ss << std::setprecision(12) << (id.length() > 0 ? id + ", " : "") << "\"LINESTRING (";
+    for (int i = 0; i < points.size(); ++i)
+        ss << (i == 0 ? "" : ", ") << points[i][0] << " " << points[i][1];
+    ss << ")\"";
+    return ss.str();
+};
 inline std::string toWKT(std::vector<std::array<double, 3>> points, std::string id = "") {
     std::stringstream ss;
     ss << std::setprecision(12) << (id.length() > 0 ? id + ", " : "") << "\"LINESTRING (";

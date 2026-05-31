@@ -1,5 +1,6 @@
 add_library(intersection_gen_lib STATIC
     intersection_generator.cpp
+        clipper.cpp
 
     curve/bezier.cpp
     curve/hermite_init.cpp
@@ -24,9 +25,9 @@ target_include_directories(intersection_gen_lib PUBLIC
 )
 
 if(DEPENDS_EXISTS STREQUAL "TRUE")
-    target_link_libraries(intersection_gen_lib PUBLIC Clipper2)
+    target_link_libraries(intersection_gen_lib PUBLIC)
 else ()
-    target_link_libraries(intersection_gen_lib PUBLIC Eigen3::Eigen Clipper2)
+    target_link_libraries(intersection_gen_lib PUBLIC Eigen3::Eigen)
 endif ()
 
 target_compile_options(intersection_gen_lib PRIVATE

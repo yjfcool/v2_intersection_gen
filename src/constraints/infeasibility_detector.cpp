@@ -2,11 +2,13 @@
 #include "fence_check.h"
 #include "optimizer/sdf_field.h"
 #include "utils.h"
-#include <clipper2/clipper.h>
+#include "clipper.hpp"
 #include <queue>
 #include <unordered_set>
 #include <cmath>
 #include <algorithm>
+
+#include "../../tests/iodata_shapefile.h"
 
 bool segmentsIntersect2(const Vec2d& a, const Vec2d& b, const Vec2d& c, const Vec2d& d) {
     Vec2d r = b - a, s = d - c;
@@ -89,20 +91,20 @@ bool detectSandwich(const SDFField& sdf, const Polygon2d& fence, double cl) {
 
 FenceRelaxResult tryRelaxFence(const Polygon2d& orig, const std::vector<Boundary>& edges,
                                const Vec2d&, double mx) {
-    using namespace Clipper2Lib;
     if (orig.outer.empty())
         return {false, {}, 0};
-    PathsD ps;
-    PathD p;
-    for (auto& pt : orig.outer)
-        p.emplace_back(pt[0], pt.y());
-    ps.push_back(p);
-    auto inf = InflatePaths(ps, mx, JoinType::Round, EndType::Polygon);
-    if (inf.empty())
-        return {false, {}, 0};
     Polygon2d relaxed;
-    for (auto& pp : inf[0])
-        relaxed.outer.emplace_back(pp.x, pp.y);
+    // Clipper2Lib::PathsD ps;
+    // Clipper2Lib::PathD p;
+    // for (auto& pt : orig.outer)
+    //     p.emplace_back(pt[0], pt.y());
+    // ps.push_back(p);
+    // auto inf = Clipper2Lib::InflatePaths(ps, mx, Clipper2Lib::JoinType::Round, Clipper2Lib::EndType::Polygon);
+    // if (inf.empty())
+    //     return {false, {}, 0};
+    // for (auto& pp : inf[0]) relaxed.outer.emplace_back(pp.x, pp.y);
+    auto pths = ClipperUtil::InflatePaths({toArray(orig.outer)}, mx, ClipperLib::jtMiter, ClipperLib::etClosedPolygon);
+    relaxed.outer = toArray(pths[0]);
     for (auto& bnd : edges) {
         if (bnd.type != Boundary::Type::RoadEdge)
             continue;
@@ -152,7 +154,7 @@ ConnectivityCurve makeFallbackCurve(const PreCheckResult& pre, const Connectivit
     out.turn_type = conn.turn_type;
     out.violation.type = pre.type;
     if (pre.type == ViolationInfo::InfeasibilityType::TopologicalBlock) {
-        out.curve = std::nullopt;
+        out.curve = nullptr;
         out.status = CurveStatus::Infeasible;
         out.violation.reason = "No obstacle-free path (BFS unreachable)";
     } else {
@@ -169,7 +171,7 @@ ConnectivityCurve makeFallbackCurve(const PreCheckResult& pre, const Connectivit
         seg.ctrl[3] = p1;
         BezierCurve c;
         c.segs.push_back(seg);
-        out.curve = c;
+        out.curve = std::make_shared<BezierCurve>(c);
         out.status = CurveStatus::Degraded;
         out.violation.reason = "Sandwich or narrow; degraded to straight";
     }

@@ -1,46 +1,27 @@
 #include "sdf_field.h"
 #include "constraints/fence_check.h"
-#include <clipper2/clipper.h>
+#include "clipper.hpp"
 #include <cmath>
 #include <algorithm>
 #include <limits>
 
-static Clipper2Lib::PathD toCP(const std::vector<Vec2d>& pts) {
-    Clipper2Lib::PathD p;
-    for (auto& v : pts)
-        p.emplace_back(v[0], v.y());
-    return p;
-}
-
-static std::vector<Vec2d> fromCP(const Clipper2Lib::PathD& p) {
-    std::vector<Vec2d> o;
-    for (auto& v : p)
-        o.emplace_back(v.x, v.y);
-    return o;
-}
-
 Polygon2d SDFField::bufferPolygon(const Polygon2d& poly, double r) {
     if (r <= 0 || poly.outer.empty()) return poly;
-    Clipper2Lib::PathsD ps;
-    ps.push_back(toCP(poly.outer));
-    auto inf = Clipper2Lib::InflatePaths(ps, r, Clipper2Lib::JoinType::Round, Clipper2Lib::EndType::Polygon);
-    if (inf.empty()) return poly;
     Polygon2d out;
-    out.outer = fromCP(inf[0]);
+    auto inf = ClipperUtil::InflatePaths({toArray(poly.outer)}, r, ClipperLib::jtMiter, ClipperLib::etClosedPolygon);
+    out.outer = toArray(inf[0]);
     return out;
 }
 
 Polygon2d SDFField::unionPolygons(const std::vector<Polygon2d>& polys) {
     if (polys.empty()) return {};
     if (polys.size() == 1) return polys[0];
-    Clipper2Lib::PathsD sub;
-    for (auto& p : polys)
-        if (!p.outer.empty())
-            sub.push_back(toCP(p.outer));
-    auto sol = Clipper2Lib::Union(sub, Clipper2Lib::FillRule::NonZero);
+    std::vector<std::vector<std::array<double,2>>> subs;
+    for (auto& p : polys) if (!p.outer.empty()) subs.emplace_back(toArray(p.outer));
+    auto sol = ClipperUtil::UnionPaths(subs, ClipperLib::pftNonZero);
     if (sol.empty()) return polys[0];
     Polygon2d out;
-    out.outer = fromCP(sol[0]);
+    out.outer = toArray(sol[0]);
     return out;
 }
 
@@ -89,16 +70,14 @@ void SDFField::build(const BoundingBox2d& roi, const std::vector<Obstacle>& obs,
         // Attempt union only to merge OVERLAPPING obstacles (reduces polygon count).
         // For each connected component returned by Union, keep it as a separate
         // Polygon2d so non-overlapping obstacles are never discarded.
-        Clipper2Lib::PathsD sub;
-        for (auto& p : buffered)
-            if (!p.outer.empty())
-                sub.push_back(toCP(p.outer));
-        auto sol = Clipper2Lib::Union(sub, Clipper2Lib::FillRule::NonZero);
+        std::vector<std::vector<std::array<double,2>>> subs;
+        for (auto& p : buffered) if (!p.outer.empty()) subs.push_back(toArray(p.outer));
+        auto sol = ClipperUtil::UnionPaths(subs, ClipperLib::pftNonZero);
         if (!sol.empty()) {
             buffered_.clear();
             for (auto& path : sol) {
                 Polygon2d pg;
-                pg.outer = fromCP(path);
+                pg.outer = toArray(path);
                 buffered_.push_back(pg);
             }
         } else {

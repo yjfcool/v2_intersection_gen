@@ -97,7 +97,7 @@ TEST_CASE("Integration: simple straight, no obstacles, OK status", "[integration
     REQUIRE(out.connectivity_curves.size() == 1);
 
     auto& cc = out.connectivity_curves[0];
-    REQUIRE(cc.curve.has_value());
+    REQUIRE(cc.curve);
     REQUIRE((cc.status == CurveStatus::OK ||
              cc.status == CurveStatus::WarnA2));
 
@@ -119,7 +119,7 @@ TEST_CASE("Integration: start/end tangent G1 continuity", "[integration]") {
     REQUIRE(!out.connectivity_curves.empty());
 
     auto& cc = out.connectivity_curves[0];
-    REQUIRE(cc.curve.has_value());
+    REQUIRE(cc.curve);
 
     // Tangent at start should point roughly east (+x)
     Vec2d start_tan = cc.curve->startTan();
@@ -142,7 +142,7 @@ TEST_CASE("Integration: curve stays inside fence", "[integration]") {
 
     REQUIRE(!out.connectivity_curves.empty());
     auto& cc = out.connectivity_curves[0];
-    REQUIRE(cc.curve.has_value());
+    REQUIRE(cc.curve);
 
     auto& fence = inp.area.geometry;
     for (auto& pt : cc.curve->sampleByArcLength(40)) {
@@ -173,7 +173,7 @@ TEST_CASE("Integration: obstacle avoidance, no penetration", "[integration]") {
     auto& cc = out.connectivity_curves[0];
     if (cc.status == CurveStatus::Infeasible) return;  // acceptable
 
-    REQUIRE(cc.curve.has_value());
+    REQUIRE(cc.curve);
 
     // Build SDF to check penetration
     SDFField check_sdf;
@@ -316,6 +316,6 @@ TEST_CASE("Integration: 4-way intersection generates all curves", "[integration]
     REQUIRE(out.connectivity_curves.size() == 4);
     for (auto& cc : out.connectivity_curves) {
         bool feasible = (cc.status != CurveStatus::Infeasible);
-        if (feasible) REQUIRE(cc.curve.has_value());
+        if (feasible) REQUIRE(cc.curve);
     }
 }

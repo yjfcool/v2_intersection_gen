@@ -6,5 +6,5 @@ node_modules
 .vscode/
 .claude/
 cmake-build-debug/
-depends/
+depends.bak/
 src/others/

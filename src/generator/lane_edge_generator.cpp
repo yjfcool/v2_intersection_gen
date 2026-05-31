@@ -72,7 +72,7 @@ std::vector<ConnectivityLaneEdge> LaneEdgeGenerator::generate(
 
             if(b>0&&b<N&&lft&&rgt){
                 auto e=makeSharedEdge(eid,*lft,*rgt,et,xt,true);
-                e.shared_by={group.lanes[b-1],group.lanes[b]};
+                e.shared_by=std::make_shared<std::pair<LaneId, LaneId>>(group.lanes[b-1],group.lanes[b]);
                 result.push_back(std::move(e));
             } else if(b==0&&rgt){
                 double hw=1.75;if(auto*l=input.findLane(group.lanes[0]))hw=l->width*0.5;

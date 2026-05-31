@@ -300,7 +300,7 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     // Pass exact lane endpoint positions to guarantee G1 continuity regardless
     // of any optimiser drift during the multi-segment optimisation.
     BezierCurve final_c=postProcess(opt,sdf,input.area.geometry,0.25,t0,t1,skip_band,&p0,&p1);
-    cc.curve=final_c;
+    cc.curve=std::make_shared<BezierCurve>(final_c);
     validate(cc,input,sdf);
     if(pre.narrow_passage&&cc.status==CurveStatus::OK)cc.status=CurveStatus::WarnA2;
     return cc;

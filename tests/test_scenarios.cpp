@@ -38,7 +38,7 @@ static void checkCurves(const IntersectionOutput& out,
     for (auto& cc : out.connectivity_curves) {
         if (cc.status == CurveStatus::Infeasible) continue;
         feasible++;
-        REQUIRE(cc.curve.has_value());
+        REQUIRE(cc.curve);
         // G1: start/end points correspond to lane geometry endpoints
         // (we only check curve is non-degenerate)
         double len = cc.curve->arcLength();
