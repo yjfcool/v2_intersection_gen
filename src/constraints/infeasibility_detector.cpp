@@ -8,8 +8,6 @@
 #include <cmath>
 #include <algorithm>
 
-#include "../../tests/iodata_shapefile.h"
-
 bool segmentsIntersect2(const Vec2d& a, const Vec2d& b, const Vec2d& c, const Vec2d& d) {
     Vec2d r = b - a, s = d - c;
     double den = cross2d(r, s);
