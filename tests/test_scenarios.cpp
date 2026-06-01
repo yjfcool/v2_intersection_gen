@@ -7,13 +7,10 @@
 // ═════════════════════════════════════════════════════════════════════════════
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include "intersection_generator.h"
+#include "intersection_shape_generator.h"
 #include "constraints/fence_check.h"
-#include "constraints/infeasibility_detector.h"
-#include "curve/curve_utils.h"
 #include "scenario_builder.h"
 #include <cmath>
-#include <algorithm>
 #include "iodata_shapefile.h"
 #include "optimizer/sdf_field.h"
 
@@ -133,7 +130,7 @@ static IntersectionInput build4Way(int lanes_per_arm = 1,
 TEST_CASE("4-way: clear no obstacles — all 12 connections feasible", "[4way][clear]")
 {
     auto inp = build4Way();
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -152,7 +149,7 @@ TEST_CASE("4-way: central square obstacle — curves reroute around it", "[4way]
 {
     auto inp = build4Way();
     addObstacle(inp, "CENTRE", makeRectObstacle({0,0}, 2.0, 2.0));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -184,7 +181,7 @@ TEST_CASE("4-way: multi-lane (2 lanes per arm) — 1:1 connectivity", "[4way][mu
         addConn(inp, entry[a][1], exitl[c][1], ConnTurnType::Straight);
         addConn(inp, entry[a][1], exitl[d][1], ConnTurnType::TurnRight);
     }
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -217,7 +214,7 @@ TEST_CASE("4-way: 1:N connectivity — one entry to two exits", "[4way][1toN]")
     addConn(inp, entry[2][0], exitl[3][0], ConnTurnType::Straight);
     addConn(inp, entry[3][0], exitl[2][0], ConnTurnType::Straight);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -250,7 +247,7 @@ TEST_CASE("4-way: N:1 connectivity — two entries merge to one exit", "[4way][N
     addConn(inp, entry[2][0], exitl[3][0], ConnTurnType::Straight);
     addConn(inp, entry[3][0], exitl[2][0], ConnTurnType::Straight);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -279,7 +276,7 @@ TEST_CASE("4-way: U-turn connections", "[4way][uturn]")
         // Outer lane → straight to opposite
         addConn(inp, entry[a][1], exitl[opp][1], ConnTurnType::Straight);
     }
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -295,7 +292,7 @@ TEST_CASE("4-way: topo-block — obstacle spans full width → Infeasible", "[4w
     auto inp = build4Way();
     // Obstacle blocks N→S corridor completely
     addObstacle(inp, "BLOCKER", makeRectObstacle({0,0}, 4.0, 2.5));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -315,7 +312,7 @@ TEST_CASE("4-way: narrow passage — only one lane fits through gap", "[4way][na
     // Two obstacles leaving ~3m gap (just enough for one lane)
     addObstacle(inp, "OBS_L", makeRectObstacle({-6,0}, 2.0, 8.0));
     addObstacle(inp, "OBS_R", makeRectObstacle({ 6,0}, 2.0, 8.0));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -331,7 +328,7 @@ TEST_CASE("4-way: fence-obstacle sandwich on east side", "[4way][sandwich]")
     auto inp = build4Way();
     // Obstacle pressed against right fence edge
     addObstacle(inp, "SANDWICH", makeRectObstacle({6,0}, 2, 3.0));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -378,7 +375,7 @@ static IntersectionInput buildTJunction(int lanes_per_arm = 1, double lane_w = 3
 TEST_CASE("T-junction: clear, all 6 connections", "[T][clear]")
 {
     auto inp = buildTJunction();
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -393,7 +390,7 @@ TEST_CASE("T-junction: central obstacle forcing reroute", "[T][obstacle]")
 {
     auto inp = buildTJunction();
     addObstacle(inp, "C", makeRectObstacle({-2,0}, 1.5, 1.5));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -429,7 +426,7 @@ TEST_CASE("T-junction: 2-lane arms with 1:N split at branch", "[T][1toN][multila
     addConn(inp, entry[2][1], exitl[1][1], ConnTurnType::Straight);
     addConn(inp, entry[2][0], exitl[0][1], ConnTurnType::TurnLeft);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -445,7 +442,7 @@ TEST_CASE("T-junction: topo-block on branch arm", "[T][topo_block]")
     auto inp = buildTJunction();
     // Block the branch corridor completely
     addObstacle(inp, "BLOCK", makeRectObstacle({0,-4}, 5.0, 2.5));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -498,7 +495,7 @@ static IntersectionInput buildYJunction(double lane_w = 3.5)
 TEST_CASE("Y-junction: clear angled arms — all 6 connections", "[Y][clear]")
 {
     auto inp = buildYJunction();
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -513,7 +510,7 @@ TEST_CASE("Y-junction: central circular obstacle", "[Y][obstacle]")
 {
     auto inp = buildYJunction();
     addObstacle(inp, "CIRC", makeCircleObstacle({0,0}, 2.0));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -546,7 +543,7 @@ TEST_CASE("Y-junction: 1:N — one arm splits to both others", "[Y][1toN]")
     addConn(inp,entry[1][0],exitl[2][0],ConnTurnType::TurnLeft);
     addConn(inp,entry[2][0],exitl[1][0],ConnTurnType::TurnRight);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -563,7 +560,7 @@ TEST_CASE("Y-junction: narrow passage between two obstacles", "[Y][narrow]")
     // Two obstacles creating a ~4m gap in the centre
     addObstacle(inp, "OL", makeRectObstacle({-5,2}, 2.5, 2.0));
     addObstacle(inp, "OR", makeRectObstacle({ 5,2}, 2.5, 2.0));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -629,7 +626,7 @@ static IntersectionInput buildRoundabout(double ring_r = 8.0,
 TEST_CASE("Roundabout: with central island — all 12 connections", "[roundabout][island]")
 {
     auto inp = buildRoundabout(8.0, 3.5, true);
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -643,7 +640,7 @@ TEST_CASE("Roundabout: with central island — all 12 connections", "[roundabout
 TEST_CASE("Roundabout: no island — basic connectivity", "[roundabout][no_island]")
 {
     auto inp = buildRoundabout(8.0, 3.5, false);
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -658,7 +655,7 @@ TEST_CASE("Roundabout: oversized island causes narrow passage", "[roundabout][na
     // Island radius = ring_r = very large, leaving almost no room
     auto inp = buildRoundabout(8.0, 3.5, false);
     addObstacle(inp, "BIG_ISLAND", makeCircleObstacle({0,0}, 9.5, 24));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -674,7 +671,7 @@ TEST_CASE("Roundabout: satellite obstacle on ring path", "[roundabout][obstacle]
     auto inp = buildRoundabout(8.0, 3.5, true);
     // Extra obstacle on the ring path between N and E
     addObstacle(inp, "DEBRIS", makeRectObstacle({-5,-5}, 1.2, 1.2));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -689,7 +686,7 @@ TEST_CASE("Roundabout: topo-block — central island completely fills fence", "[
     auto inp = buildRoundabout(8.0, 3.5, false);
     // Monster obstacle fills the whole junction area
     addObstacle(inp, "FULLBLOCK", makeCircleObstacle({0,0}, 6.0, 24));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -713,7 +710,7 @@ TEST_CASE("4-way: multiple obstacles — curves avoid all", "[4way][multi_obs]")
     addObstacle(inp, "O1", makeRectObstacle({-4, 4}, 1.0, 1.0));
     addObstacle(inp, "O2", makeRectObstacle({ 4,-4}, 1.0, 1.0));
     addObstacle(inp, "O3", makeCircleObstacle({-4,-4}, 0.8));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -730,7 +727,7 @@ TEST_CASE("4-way: multiple obstacles — curves avoid all", "[4way][multi_obs]")
 //     // Obstacles pressed near top and bottom fence edges
 //     addObstacle(inp, "TOP_OBS", makeRectObstacle({0, 12}, 10.0, 1.5));
 //     addObstacle(inp, "BOT_OBS", makeRectObstacle({0,-12}, 10.0, 1.5));
-//     IntersectionGenerator gen;
+//     IntersectionShapeGenerator gen;
 //     IntersectionOutput out;
 //     REQUIRE(gen.generate(inp, out));
 //
@@ -765,7 +762,7 @@ TEST_CASE("T-junction: U-turn on branch arm", "[T][uturn]")
     addConn(inp, entry[1][0], exitl[0][1], ConnTurnType::TurnRight);
     addConn(inp, entry[2][0], exitl[0][1], ConnTurnType::TurnLeft);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -781,7 +778,7 @@ TEST_CASE("T-junction: fence-obstacle sandwich on branch side", "[T][sandwich]")
     auto inp = buildTJunction();
     // Obstacle near top fence edge (above branch)
     addObstacle(inp, "SAND", makeRectObstacle({0,-12}, 5.0, 1.5));
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -813,7 +810,7 @@ TEST_CASE("Y-junction: all U-turns (unusual but valid)", "[Y][uturn]")
         addConn(inp,entry[a][1],exitl[b][1],ConnTurnType::TurnLeft);
         addConn(inp,entry[a][1],exitl[c][1],ConnTurnType::TurnRight);
     }
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -843,7 +840,7 @@ TEST_CASE("4-way: all turn types present simultaneously", "[4way][all_turns]")
         addConn(inp,entry[a][2],exitl[opp][2],  ConnTurnType::Straight);   // outer: straight
         addConn(inp,entry[a][1],exitl[right][1],ConnTurnType::TurnRight);  // middle: right
     }
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -857,7 +854,7 @@ TEST_CASE("4-way: all turn types present simultaneously", "[4way][all_turns]")
 TEST_CASE("4-way: topology validates — correct boundary counts", "[4way][validation]")
 {
     auto inp = build4Way();
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     REQUIRE(gen.generate(inp, out));
 
@@ -873,7 +870,7 @@ TEST_CASE("4-way: topology validates — correct boundary counts", "[4way][valid
 //     auto inp = build4Way();
 //     // Corrupt one group's boundaries
 //     inp.lane_groups[0].boundaries.pop_back();
-//     IntersectionGenerator gen;
+//     IntersectionShapeGenerator gen;
 //     IntersectionOutput out;
 //     REQUIRE_FALSE(gen.generate(inp, out));
 //
@@ -890,7 +887,7 @@ TEST_CASE("All scenario types: perf stats populated and sane", "[perf]")
         buildRoundabout()
     };
     for (auto& inp : inputs) {
-        IntersectionGenerator gen;
+        IntersectionShapeGenerator gen;
         IntersectionOutput out;
         if (!gen.generate(inp, out)) continue;
 

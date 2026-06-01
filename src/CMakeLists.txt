@@ -1,5 +1,5 @@
 add_library(intersection_gen_lib STATIC
-    intersection_generator.cpp
+    intersection_shape_generator.cpp
         clipper.cpp
 
     curve/bezier.cpp

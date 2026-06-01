@@ -19,7 +19,9 @@ bool segmentsIntersect2(const Vec2d& a, const Vec2d& b, const Vec2d& c, const Ve
 }
 
 bool isSimplePolygon(const Polygon2d& poly) {
-    auto& ring = poly.outer;
+    auto ring = poly.outer;
+    if (ring.front() == ring.back())
+        ring.pop_back();
     int n = (int)ring.size();
     if (n < 4)
         return true;

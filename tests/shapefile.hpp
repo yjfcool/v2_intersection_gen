@@ -605,7 +605,7 @@ inline bool WKT2Shapefile(std::string wkt_file, std::string shp_dir, std::string
         if (first_bracket == std::string::npos)
             return coords;
         type = wkt.substr(0, first_bracket);
-        type.erase(remove_if(type.begin(), type.end(), isspace), type.end()); // toupper
+        type.erase(std::remove_if(type.begin(), type.end(), [](unsigned char c) { return std::isspace(c); }), type.end());
         std::transform(type.begin(), type.end(), type.begin(), ::toupper);
         // filter string
         std::string clean_wkt = wkt.substr(first_bracket);

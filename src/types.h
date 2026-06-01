@@ -5,7 +5,6 @@
 #include <vector>
 #include <array>
 #include <map>
-#include <unordered_map>
 
 using Vec2d = Eigen::Vector2d;
 using VecXd = Eigen::VectorXd;

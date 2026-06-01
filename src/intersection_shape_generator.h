@@ -8,15 +8,15 @@ struct ValidationReport {
 
 ValidationReport validateTopology(const IntersectionInput&);
 
-class IntersectionGenerator {
+class IntersectionShapeGenerator {
 public:
     struct Config {
         double sdf_cell_size = 0.2, obstacle_buffer = 0.4, kappa_max = 0.25;
         LBFGSConfig lbfgs;
     };
 
-    IntersectionGenerator();
-    explicit IntersectionGenerator(const Config& cfg);
+    IntersectionShapeGenerator();
+    explicit IntersectionShapeGenerator(const Config& cfg);
     bool generate(const IntersectionInput&, IntersectionOutput&);
     const ValidationReport& lastReport() const { return report_; }
 

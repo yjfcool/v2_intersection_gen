@@ -3,6 +3,8 @@
 #include "curve/curve_utils.h"
 #include "constraints/fence_check.h"
 #include "utils.h"
+#include "optimizer/sdf_field.h"
+#include "constraints/infeasibility_detector.h"
 #include <chrono>
 #include <algorithm>
 #include <map>

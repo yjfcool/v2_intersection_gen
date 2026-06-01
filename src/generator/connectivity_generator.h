@@ -1,11 +1,9 @@
 #pragma once
 #include "types.h"
-#include "optimizer/sdf_field.h"
 #include "optimizer/penalty_cost.h"
 #include "optimizer/lbfgs_solver.h"
 #include "constraints/cluster_order.h"
-#include "constraints/infeasibility_detector.h"
-#include <map>
+
 struct OptGroup{std::vector<ConnId>conn_ids;int priority=0;};
 class GlobalCoordinator{
 public:

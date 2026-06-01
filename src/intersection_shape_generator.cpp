@@ -1,19 +1,16 @@
-#include "intersection_generator.h"
+#include "intersection_shape_generator.h"
 #include "utils.h"
 #include "generator/connectivity_generator.h"
 #include "constraints/infeasibility_detector.h"
+#include "generator/edge_line_generator.h"
+#include "generator/polygon_builder.h"
 #include <chrono>
 #include <cmath>
 
-#include "generator/lane_edge_generator.h"
-#include "generator/fine_area_generator.h"
-#include "generator/edge_line_generator.h"
-#include "generator/polygon_builder.h"
-
-IntersectionGenerator::IntersectionGenerator(): cfg_{} {
+IntersectionShapeGenerator::IntersectionShapeGenerator(): cfg_{} {
 }
 
-IntersectionGenerator::IntersectionGenerator(const Config& cfg): cfg_(cfg) {
+IntersectionShapeGenerator::IntersectionShapeGenerator(const Config& cfg): cfg_(cfg) {
 }
 
 inline const char* turnTypeName(ConnTurnType t) {
@@ -65,7 +62,7 @@ ValidationReport validateTopology(const IntersectionInput& input) {
     return r;
 }
 
-bool IntersectionGenerator::generate(const IntersectionInput& input, IntersectionOutput& output) {
+bool IntersectionShapeGenerator::generate(const IntersectionInput& input, IntersectionOutput& output) {
     report_ = validateTopology(input);
     if (!report_.is_valid())
         return false;

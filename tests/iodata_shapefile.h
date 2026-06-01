@@ -10,7 +10,7 @@
 #include <iostream>
 #include "shapefile.hpp"
 #include "filesystem.hpp"
-#include "../src/types.h"
+#include "types.h"
 
 namespace fs = ghc::filesystem;
 

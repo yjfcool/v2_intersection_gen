@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include "intersection_generator.h"
+
+#include "intersection_shape_generator.h"
 #include "constraints/fence_check.h"
-#include "curve/curve_utils.h"
 #include "iodata_shapefile.h"
 #include "optimizer/sdf_field.h"
 
@@ -86,7 +86,7 @@ static IntersectionInput makeTwoDirectionInput(bool add_obstacle = false) {
 TEST_CASE("Integration: simple straight, no obstacles, OK status", "[integration]") {
     auto inp = makeTwoDirectionInput(false);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     bool ok = gen.generate(inp, out);
 
@@ -109,7 +109,7 @@ TEST_CASE("Integration: simple straight, no obstacles, OK status", "[integration
 TEST_CASE("Integration: start/end tangent G1 continuity", "[integration]") {
     auto inp = makeTwoDirectionInput(false);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     gen.generate(inp, out);
 
@@ -133,7 +133,7 @@ TEST_CASE("Integration: start/end tangent G1 continuity", "[integration]") {
 TEST_CASE("Integration: curve stays inside fence", "[integration]") {
     auto inp = makeTwoDirectionInput(false);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     gen.generate(inp, out);
 
@@ -158,9 +158,9 @@ TEST_CASE("Integration: curve stays inside fence", "[integration]") {
 TEST_CASE("Integration: obstacle avoidance, no penetration", "[integration]") {
     auto inp = makeTwoDirectionInput(true);   // add central obstacle
 
-    IntersectionGenerator::Config cfg;
+    IntersectionShapeGenerator::Config cfg;
     cfg.lbfgs.max_iter = 200;
-    IntersectionGenerator gen(cfg);
+    IntersectionShapeGenerator gen(cfg);
     IntersectionOutput out;
     bool ok = gen.generate(inp, out);
 
@@ -191,7 +191,7 @@ TEST_CASE("Integration: topology validation catches mismatched boundaries", "[in
     // Break boundary count: remove one boundary from entry group
     inp.lane_groups[0].boundaries.pop_back();
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     bool ok = gen.generate(inp, out);
 
@@ -206,7 +206,7 @@ TEST_CASE("Integration: topology validation catches mismatched boundaries", "[in
 TEST_CASE("Integration: fine area is non-empty polygon", "[integration]") {
     auto inp = makeTwoDirectionInput(false);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     gen.generate(inp, out);
 
@@ -220,7 +220,7 @@ TEST_CASE("Integration: fine area is non-empty polygon", "[integration]") {
 TEST_CASE("Integration: perf stats are populated", "[integration]") {
     auto inp = makeTwoDirectionInput(false);
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     gen.generate(inp, out);
 
@@ -303,7 +303,7 @@ static IntersectionInput makeFourWayInput() {
 TEST_CASE("Integration: 4-way intersection generates all curves", "[integration]") {
     auto inp = makeFourWayInput();
 
-    IntersectionGenerator gen;
+    IntersectionShapeGenerator gen;
     IntersectionOutput out;
     bool ok = gen.generate(inp, out);
 

@@ -2,7 +2,8 @@
 #include "types.h"
 #include <map>
 #include <set>
-#include <optional>
+
+#include "curve/bezier.h"
 
 /**
  * Edge line generator (optimized shared-edge version)
