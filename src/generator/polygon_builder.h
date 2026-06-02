@@ -48,7 +48,7 @@ public:
         double  radius = computeRadius(inp, centerlines, center);
 
         std::cout<<("Polygon: center=(" + std::to_string(center[0]) + "," +
-                     std::to_string(center[1]) + ") radius=" + std::to_string(radius));
+                     std::to_string(center[1]) + ") radius=" + std::to_string(radius))<<std::endl;
 
         // 2. 裁剪道路边缘线，获取路口侧端点集
         std::vector<EdgeEndpoint> endpoints;
@@ -91,13 +91,13 @@ public:
         // 若道路边缘线端点不足，从连通关系连接点的外侧边线端点补充
         if(endpoints.size() < 3){
             std::cout<<("Road edge endpoints insufficient (" +
-                         std::to_string(endpoints.size()) + "), supplementing from lane edges.");
+                         std::to_string(endpoints.size()) + "), supplementing from lane edges.")<<std::endl;
             supplementEndpointsFromLaneEdges(endpoints, inp, edgelines, center, radius);
         }
 
         if(endpoints.size() < 3){
             // 终极回退：用所有连接点的凸包
-            std::cout<<("Still insufficient endpoints, using convex hull of connection points.");
+            std::cout<<("Still insufficient endpoints, using convex hull of connection points.")<<std::endl;
             junctArea.geometry.outer = buildConvexHullFallback(inp, centerlines);
             return junctArea;
         }
@@ -147,7 +147,7 @@ public:
 
         double area = polygonArea(junctArea.geometry.outer);
         std::cout<<("Polygon built: vertices=" + std::to_string(junctArea.geometry.outer.size())
-                     + " area=" + std::to_string(area));
+                     + " area=" + std::to_string(area))<<std::endl;
 
         if(area < 1.0){
             std::cout<<("Polygon area too small: " + std::to_string(area));

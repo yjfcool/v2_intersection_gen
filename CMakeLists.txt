@@ -1,45 +1,43 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.15)
 project(intersection_gen LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_compile_definitions(PROJECT_ROOT_DIR=\"${PROJECT_SOURCE_DIR}\")
+add_compile_definitions(PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
 set(DEPENDS_EXISTS "FALSE")
 set(DEPENDS_DIR "${CMAKE_SOURCE_DIR}/depends")
 if(EXISTS "${DEPENDS_DIR}")
     set(DEPENDS_EXISTS "TRUE")
     message(STATUS "Found [DEPENDS_DIR=${DEPENDS_DIR}], using it directly.")
-    ## 添加第三方依赖库目录
-    include_directories(${DEPENDS_DIR}/nlohmann/)
     include_directories(${DEPENDS_DIR}/eigen/include/eigen3)
-#    include_directories(${DEPENDS_DIR}/clipper2/include)
-    #include_directories(${DEPENDS_DIR}/geos/include)
-
     link_directories(${DEPENDS_DIR}/eigen/lib)
-#    link_directories(${DEPENDS_DIR}/clipper2/lib)
-    #link_directories(${DEPENDS_DIR}/geos/lib)
 else()
     set(DEPENDS_EXISTS "FALSE")
     message(STATUS "Not found [DEPENDS_DIR=${DEPENDS_DIR}], using <FetchContent> fetch libriaries.")
     include(FetchContent)
+
 #    ## nlohmann_json
 #    message(STATUS "Start fetch libriary: nlohmann_json ...")
 #    FetchContent_Declare(nlohmann_json
 #            GIT_REPOSITORY https://github.com/nlohmann/json.git
 #            GIT_TAG        v3.11.3)
 #    FetchContent_MakeAvailable(nlohmann_json)
+
     ## eigen
     message(STATUS "Start fetch libriary: eigen ...")
+    option(EIGEN_BUILD_DOC "Enable creation of Eigen documentation" OFF)
+    option(BUILD_TESTING "Enable creation of Eigen tests." OFF)
+    option(EIGEN_BUILD_PKGCONFIG "Build pkg-config .pc file for Eigen" OFF)
+    option(EIGEN_SPLIT_LARGE_TESTS "Split large tests into smaller executables" OFF)
     FetchContent_Declare(eigen
             GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
             GIT_TAG        3.4.0
             GIT_SHALLOW    TRUE)
-    set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
-    set(BUILD_TESTING   OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(eigen)
+
 #    ## Clipper2
 #    message(STATUS "Start fetch libriary: Clipper2 ...")
 #    option(CLIPPER2_EXAMPLES "Build examples" OFF)
@@ -55,5 +53,9 @@ else()
 #    FetchContent_MakeAvailable(Clipper2)
 endif()
 
+
 add_subdirectory(src)
-add_subdirectory(tests)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+    add_subdirectory(tests)
+endif()

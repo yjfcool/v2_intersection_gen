@@ -10,9 +10,11 @@
 #include "intersection_shape_generator.h"
 #include "constraints/fence_check.h"
 #include "scenario_builder.h"
-#include <cmath>
-#include "iodata_shapefile.h"
 #include "optimizer/sdf_field.h"
+#include <cmath>
+
+#include "io/iodata_shapefile.h"
+#include "io/iodata_json.h"
 
 using Catch::Matchers::WithinAbs;
 
@@ -21,6 +23,7 @@ using Catch::Matchers::WithinAbs;
 #define TEST_Y
 #define TEST_ROUNDABOUT
 #define TEST_OBSTACLE
+#define TEST_FILE
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Common validation helpers
@@ -893,6 +896,27 @@ TEST_CASE("All scenario types: perf stats populated and sane", "[perf]")
 
         save(inp, "./perf/input/", "");
         save(out, "./perf/output/", "");
+
+        REQUIRE(out.perf.sdf_build_ms >= 0.0);
+        REQUIRE(out.perf.optimize_ms  >= 0.0);
+        REQUIRE(out.perf.edge_gen_ms  >= 0.0);
+        REQUIRE(out.perf.area_gen_ms  >= 0.0);
+    }
+}
+#endif
+
+#ifdef TEST_FILE
+TEST_CASE("Actual intersection of osm", "[actual]")
+{
+    std::string fpth = std::string(PROJECT_ROOT_DIR) + "/intersection_input.json"
+    std::vector<IntersectionInput> inputs = {IntersectionIO::loadFromFile(fpth)};
+    for (auto& inp : inputs) {
+        IntersectionShapeGenerator gen;
+        IntersectionOutput out;
+        if (!gen.generate(inp, out)) continue;
+
+        save(inp, "./actual/input/", "");
+        save(out, "./actual/output/", "");
 
         REQUIRE(out.perf.sdf_build_ms >= 0.0);
         REQUIRE(out.perf.optimize_ms  >= 0.0);

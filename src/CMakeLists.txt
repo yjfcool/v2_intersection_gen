@@ -34,3 +34,14 @@ target_compile_options(intersection_gen_lib PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -O2>
     $<$<CXX_COMPILER_ID:MSVC>:/W3 /O2>
 )
+
+# 添加测试用例应用程序
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+    add_executable(intersection_gen main.cpp)
+    target_link_libraries(intersection_gen PRIVATE intersection_gen_lib)
+    # 设置测试应用程序的编译选项
+    target_compile_options(intersection_gen PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>
+        $<$<CXX_COMPILER_ID:MSVC>:/W3>
+    )
+endif()

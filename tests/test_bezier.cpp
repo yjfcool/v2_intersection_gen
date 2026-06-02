@@ -4,8 +4,8 @@
 #include "curve/curve_utils.h"
 #include "utils.h"
 
-#include "iodata_shapefile.h"
-#include "shapefile.hpp"
+#include "io/iodata_shapefile.h"
+#include "io/shapefile.hpp"
 
 using Catch::Matchers::WithinAbs;
 

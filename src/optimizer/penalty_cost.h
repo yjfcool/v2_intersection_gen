@@ -16,14 +16,14 @@ struct PenaltyWeights {
     double obstacle = 10.0;
     double boundary = 8.0;
     double fence = 5.0;
-    double cluster = 3.0;
+    double cluster = 8.0;  // Increased initial cluster weight to prioritize intersection avoidance
     double crosswalk = 0.5;
 
     void update(double op, double bp, double fp, double cp) {
         if (op > 1e-3) obstacle = std::min(obstacle * 2.0, 160.0);
         if (bp > 1e-3) boundary = std::min(boundary * 2.0, 128.0);
         if (fp > 1e-3) fence = std::min(fence * 2.0, 80.0);
-        if (cp > 1e-3) cluster = std::min(cluster * 1.5, 48.0);
+        if (cp > 1e-3) cluster = std::min(cluster * 1.8, 64.0);  // Increased boost factor for cluster constraint to better compete with obstacle avoidance
     }
 };
 

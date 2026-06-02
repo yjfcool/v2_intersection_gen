@@ -263,7 +263,6 @@ static bool save(IntersectionOutput& out, std::string dir, std::string prefix) {
     };
 #ifdef PROJECT_ROOT_DIR
     std::string proj_dir = PROJECT_ROOT_DIR;
-    std::cout << "PROJECT_ROOT_DIR : " << proj_dir << std::endl;
     std::string qgis_fname = "/intersection_gen.qgs";
     std::string qgis_temp = proj_dir + qgis_fname;
     std::string dest_file = fs::path(dir).parent_path().parent_path().string() + qgis_fname;

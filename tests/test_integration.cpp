@@ -1,10 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-
 #include "intersection_shape_generator.h"
 #include "constraints/fence_check.h"
-#include "iodata_shapefile.h"
 #include "optimizer/sdf_field.h"
+
+#include "io/iodata_shapefile.h"
 
 using Catch::Matchers::WithinAbs;
 
