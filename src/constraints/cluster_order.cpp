@@ -6,12 +6,14 @@
 
 void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
                                const std::vector<Lane>&, const std::vector<LaneGroup>&) {
+    // Turn type priority for inner→outer ordering within a cluster.
+    // (UTurnLeft=0 is most inner, UTurnRight=4 most outer)
     auto pri = [](ConnTurnType t) {
         switch (t) {
-        case ConnTurnType::UTurnLeft: return 0;
-        case ConnTurnType::TurnLeft: return 1;
-        case ConnTurnType::Straight: return 2;
-        case ConnTurnType::TurnRight: return 3;
+        case ConnTurnType::UTurnLeft:  return 0;
+        case ConnTurnType::TurnLeft:   return 1;
+        case ConnTurnType::Straight:   return 2;
+        case ConnTurnType::TurnRight:  return 3;
         case ConnTurnType::UTurnRight: return 4;
         }
         return 2;

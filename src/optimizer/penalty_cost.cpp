@@ -15,6 +15,7 @@
 #include "penalty_cost.h"
 #include "constraints/fence_check.h"
 #include "curve/curve_utils.h"
+#include "utils.h"
 #include <cmath>
 #include <algorithm>
 

@@ -72,11 +72,20 @@ std::pair<Vec2d,Vec2d> IntersectionInput::exitPtDir(const LaneId&lid)const{
 }
 
 // ── GlobalCoordinator ─────────────────────────────────────────
+// Generation order: straight first (anchor), then left/right turns,
+// then U-turns last (they are most constrained and need all others as siblings).
 int GlobalCoordinator::turnPriority(ConnTurnType t){
-    switch(t){case ConnTurnType::Straight:return 0;case ConnTurnType::TurnLeft:return 1;
-    case ConnTurnType::TurnRight:return 2;default:return 3;}
+    switch(t){
+    case ConnTurnType::Straight:   return 0;
+    case ConnTurnType::TurnLeft:   return 1;
+    case ConnTurnType::TurnRight:  return 1;
+    case ConnTurnType::UTurnLeft:  return 2;
+    case ConnTurnType::UTurnRight: return 2;
+    default: return 0;
+    }
 }
-void GlobalCoordinator::build(const std::vector<Connectivity>&conns,const IntersectionInput&){
+
+void GlobalCoordinator::build(const std::vector<Connectivity>&conns,const IntersectionInput&inp){
     std::map<int,OptGroup>pm;
     for(auto&c:conns){int p=turnPriority(c.turn_type);pm[p].conn_ids.push_back(c.id);pm[p].priority=p;}
     groups_.clear();

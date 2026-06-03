@@ -119,7 +119,7 @@ using InterId = std::string;
 using AttrMap = std::map<std::string, std::string>;
 
 enum class GroupRole { Entry, Exit };
-enum class ConnTurnType { Unknown = 0, TurnLeft, UTurnLeft, Straight, TurnRight, UTurnRight };
+enum class ConnTurnType { Unknown = 0, TurnLeft = 1, UTurnLeft = 2, Straight = 3, TurnRight = 4, UTurnRight = 5 };
 
 struct LaneEdge {
     LaneEdgeId id;
