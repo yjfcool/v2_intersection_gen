@@ -18,6 +18,7 @@
 #include "utils.h"
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PenaltyCostCache

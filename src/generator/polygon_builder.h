@@ -47,8 +47,8 @@ public:
         Vec2d center = computeCenter(inp, centerlines);
         double  radius = computeRadius(inp, centerlines, center);
 
-        std::cout<<("Polygon: center=(" + std::to_string(center[0]) + "," +
-                     std::to_string(center[1]) + ") radius=" + std::to_string(radius))<<std::endl;
+        // std::cout<<("Polygon: center=(" + std::to_string(center[0]) + "," +
+        //              std::to_string(center[1]) + ") radius=" + std::to_string(radius))<<std::endl;
 
         // 2. 裁剪道路边缘线，获取路口侧端点集
         std::vector<EdgeEndpoint> endpoints;
@@ -83,21 +83,21 @@ public:
                 // 吸附到最近的车道边线端点
                 Vec2d snapped = snapToEdgePt(candidatePt, edgelines, inp, snapTolerance);
                 endpoints.emplace_back(EdgeEndpoint{snapped, i, isStart});
-                std::cout<<("Edge endpoint[" + std::to_string(i) + "]: ("
-                    + std::to_string(snapped[0]) + "," + std::to_string(snapped[1]) + ")")<<std::endl;
+                // std::cout<<("Edge endpoint[" + std::to_string(i) + "]: ("
+                //     + std::to_string(snapped[0]) + "," + std::to_string(snapped[1]) + ")")<<std::endl;
             }
         }
 
         // 若道路边缘线端点不足，从连通关系连接点的外侧边线端点补充
         if(endpoints.size() < 3){
-            std::cout<<("Road edge endpoints insufficient (" +
-                         std::to_string(endpoints.size()) + "), supplementing from lane edges.")<<std::endl;
+            // std::cout<<("Road edge endpoints insufficient (" +
+            //              std::to_string(endpoints.size()) + "), supplementing from lane edges.")<<std::endl;
             supplementEndpointsFromLaneEdges(endpoints, inp, edgelines, center, radius);
         }
 
         if(endpoints.size() < 3){
             // 终极回退：用所有连接点的凸包
-            std::cout<<("Still insufficient endpoints, using convex hull of connection points.")<<std::endl;
+            // std::cout<<("Still insufficient endpoints, using convex hull of connection points.")<<std::endl;
             junctArea.geometry.outer = buildConvexHullFallback(inp, centerlines);
             return junctArea;
         }
@@ -146,12 +146,12 @@ public:
         expandToContainCenterlines(junctArea.geometry.outer, centerlines, center);
 
         double area = polygonArea(junctArea.geometry.outer);
-        std::cout<<("Polygon built: vertices=" + std::to_string(junctArea.geometry.outer.size())
-                     + " area=" + std::to_string(area))<<std::endl;
-
-        if(area < 1.0){
-            std::cout<<("Polygon area too small: " + std::to_string(area));
-        }
+        // std::cout<<("Polygon built: vertices=" + std::to_string(junctArea.geometry.outer.size())
+        //              + " area=" + std::to_string(area))<<std::endl;
+        //
+        // if(area < 1.0){
+        //     std::cout<<("Polygon area too small: " + std::to_string(area));
+        // }
 
         return junctArea;
     }

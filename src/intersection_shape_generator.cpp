@@ -90,14 +90,12 @@ bool IntersectionShapeGenerator::generate(const IntersectionInput& input, Inters
     output.perf.optimize_ms = opt_ms;
 
     auto te = std::chrono::steady_clock::now();
-    // LaneEdgeGenerator egen; output.lane_edges=egen.generate(input,output.connectivity_curves,sdf);
     EdgeLineGenerator elgen;
     output.lane_edges = elgen.generate(input, output.connectivity_curves);
     output.perf.edge_gen_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - te).count();
 
     auto ta = std::chrono::steady_clock::now();
-    // FineAreaGenerator agen; output.area.coarse_area=input.area.coarse_area; output.area.fine_area=agen.generate(input,output.connectivity_curves);
     IntersectionAreaBuilder areabuilder;
     output.area = areabuilder.build(input, output.connectivity_curves, output.lane_edges);
     output.perf.area_gen_ms =
