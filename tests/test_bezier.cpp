@@ -44,7 +44,8 @@ TEST_CASE("BezierSegment de Casteljau split preserves endpoints", "[bezier]") {
     s.ctrl[2] = Vec2d(3,2);
     s.ctrl[3] = Vec2d(4,0);
 
-    auto [L, R] = s.splitAt(0.5);
+    std::pair<BezierSegment,BezierSegment> _sp = s.splitAt(0.5);
+    BezierSegment L = _sp.first, R = _sp.second;
     // Split point is shared
     REQUIRE_THAT((L.ctrl[3] - R.ctrl[0]).norm(), WithinAbs(0.0, 1e-9));
     // Original endpoints preserved

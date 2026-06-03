@@ -25,8 +25,8 @@ std::vector<Vec2d> elasticBandSmooth(const std::vector<Vec2d>&pts,const SDFField
             Vec2d cen=circumcenter(res[i-1],res[i],res[i+1]);
             Vec2d dir=res[i]-cen;if(dir.norm()<1e-10)continue;dir.normalize();
             Vec2d cand=res[i]+dir*ms;
-            auto[d,dummy]=sdf.queryWithGrad(cand);
-            if(d>=msc&&polygonContains(fence,cand)){res[i]=cand;ch=true;}}
+            std::pair<double,Vec2d> _q=sdf.queryWithGrad(cand);
+            if(_q.first>=msc&&polygonContains(fence,cand)){res[i]=cand;ch=true;}}
         if(!ch)break;}
     return res;}
 BezierCurve rebuildFromSmoothedPts(const std::vector<Vec2d>&s,const Vec2d&st,const Vec2d&et){
@@ -44,7 +44,7 @@ bool segmentsIntersect(const Vec2d&a,const Vec2d&b,const Vec2d&c,const Vec2d&d,V
 double minSDFAlongCurve(const BezierCurve&c,const SDFField&sdf,int sps){
     double m=1e18;
     for(auto&seg:c.segs)for(int i=0;i<=sps;++i){
-        auto[d,dummy]=sdf.queryWithGrad(seg.evaluate((double)i/sps));m=std::min(m,d);}
+        std::pair<double,Vec2d> _q=sdf.queryWithGrad(seg.evaluate((double)i/sps));m=std::min(m,_q.first);}
     return m;}
 double distToAllEndpoints(const Vec2d&pt,const BezierCurve&a,const BezierCurve&b){
     double d=1e18;
@@ -70,8 +70,10 @@ static void segPairCross(const BezierSegment& a, const BezierSegment& b,
         out.push_back(a.evaluate(0.5));
         return;
     }
-    auto [al,ar] = a.splitAt(0.5);
-    auto [bl,br] = b.splitAt(0.5);
+    std::pair<BezierSegment,BezierSegment> _sa = a.splitAt(0.5);
+    std::pair<BezierSegment,BezierSegment> _sb = b.splitAt(0.5);
+    BezierSegment al = _sa.first, ar = _sa.second;
+    BezierSegment bl = _sb.first, br = _sb.second;
     segPairCross(al, bl, out, tol, depth + 1);
     segPairCross(al, br, out, tol, depth + 1);
     segPairCross(ar, bl, out, tol, depth + 1);

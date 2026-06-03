@@ -1,6 +1,5 @@
 #pragma once
 #include <Eigen/Dense>
-#include <optional>
 #include <string>
 #include <vector>
 #include <array>
@@ -51,8 +50,8 @@ inline double pointToPolyline(const Vec2d& p, const std::vector<Vec2d>& poly) {
     if (poly.size() == 1) return dist(p, poly[0]);
     double minD = std::numeric_limits<double>::max();
     for (size_t i = 0; i + 1 < poly.size(); ++i) {
-        auto [d, t] = pointToSegment(p, poly[i], poly[i + 1]);
-        minD = std::min(minD, d);
+        std::pair<double, double> _seg = pointToSegment(p, poly[i], poly[i + 1]);
+        minD = std::min(minD, _seg.first);
     }
     return minD;
 }

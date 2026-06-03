@@ -180,9 +180,9 @@ TEST_CASE("Integration: obstacle avoidance, no penetration", "[integration]") {
     check_sdf.build(inp.area.geometry.bbox(), inp.obstacles, 0.2, 0.0);
 
     for (auto& pt : cc.curve->sampleByArcLength(50)) {
-        auto [d,_] = check_sdf.queryWithGrad(pt);
+        std::pair<double,Vec2d> _q = check_sdf.queryWithGrad(pt);
         // Allow tiny numerical penetration
-        REQUIRE(d > -0.2);
+        REQUIRE(_q.first > -0.2);
     }
 }
 
@@ -288,7 +288,8 @@ static IntersectionInput makeFourWayInput() {
         {"N","S"},{"S","N"},{"E","W"},{"W","E"}
     };
     int idx = 0;
-    for (auto& [from,to] : straights) {
+    for (auto& kv : straights) {
+        auto& from = kv.first; auto& to = kv.second;
         Connectivity c;
         c.id = "C"+std::to_string(idx++);
         c.entry_lane_id = "LE_"+from;

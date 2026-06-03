@@ -39,8 +39,8 @@ bool bfsReachable(const SDFField& sdf, const Polygon2d& fence,
                   const Vec2d& start, const Vec2d& goal, double mc) {
     if (!sdf.valid())
         return true;
-    auto [sr,sc_] = sdf.worldToCell(start);
-    auto [gr,gc_] = sdf.worldToCell(goal);
+    std::pair<int,int> _sc = sdf.worldToCell(start); int sr = _sc.first; int sc_ = _sc.second;
+    std::pair<int,int> _gc = sdf.worldToCell(goal); int gr = _gc.first; int gc_ = _gc.second;
     int rows = sdf.rows(), cols = sdf.cols();
     auto key = [&](int r, int c) { return r * cols + c; };
     std::unordered_set<int> vis;
@@ -51,8 +51,8 @@ bool bfsReachable(const SDFField& sdf, const Polygon2d& fence,
         if (vis.count(key(r, c)))
             return;
         Vec2d w = sdf.cellToWorld(r, c);
-        auto [d,dummy] = sdf.queryWithGrad(w);
-        if (d < mc)
+        std::pair<double,Vec2d> _q = sdf.queryWithGrad(w);
+        if (_q.first < mc)
             return;
         if (!fence.outer.empty() && !polygonContains(fence, w))
             return;
@@ -62,7 +62,7 @@ bool bfsReachable(const SDFField& sdf, const Polygon2d& fence,
     push(sr, sc_);
     int dx[] = {0, 0, 1, -1, 1, 1, -1, -1}, dy[] = {1, -1, 0, 0, 1, -1, 1, -1};
     while (!q.empty()) {
-        auto [r,c] = q.front();
+        std::pair<int,int> _fr = q.front(); int r = _fr.first; int c = _fr.second;
         q.pop();
         if (r == gr && c == gc_)
             return true;
@@ -82,8 +82,8 @@ bool detectSandwich(const SDFField& sdf, const Polygon2d& fence, double cl) {
         Vec2d edge = (b - a).normalized();
         Vec2d inward{edge[1], -edge[0]};
         Vec2d inner = mid + cl * inward;
-        auto [d,dummy] = sdf.queryWithGrad(inner);
-        if (d < cl)
+        std::pair<double,Vec2d> _q2 = sdf.queryWithGrad(inner);
+        if (_q2.first < cl)
             return true;
     }
     return false;
@@ -129,8 +129,8 @@ PreCheckResult preCheck(const SDFField& sdf, const Polygon2d& fence,
         Vec2d pt = (1 - t) * ep + t * xp;
         if (!fence.outer.empty() && !polygonContains(fence, pt))
             continue;
-        auto [d,dummy] = sdf.queryWithGrad(pt);
-        minW = std::min(minW, d * 2.0);
+        std::pair<double,Vec2d> _q3 = sdf.queryWithGrad(pt);
+        minW = std::min(minW, _q3.first * 2.0);
     }
     r.min_corridor_width = minW;
     r.narrow_passage = (minW < rw * 1.2);

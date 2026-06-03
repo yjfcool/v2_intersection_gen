@@ -128,8 +128,8 @@ double PenaltyCost::evalCluster(const BezierCurve& c) const {
                     continue;
                 // a2 exemption
                 if (sp.a2_radius > 0 && sdf) {
-                    auto [d, dummy] = sdf->queryWithGrad(isect);
-                    if (d < sp.a2_radius)
+                    std::pair<double,Vec2d> _q = sdf->queryWithGrad(isect);
+                    if (_q.first < sp.a2_radius)
                         continue;
                 }
                 cost += 1.0;
@@ -213,7 +213,8 @@ void PenaltyCost::addObstacleGrad(
         for (int i = 0; i <= S; ++i) {
             double t = (double)i / S;
             Vec2d pt = seg.evaluate(t);
-            auto [d, gd] = sdf->queryWithGrad(pt);
+            std::pair<double, Vec2d> _q = sdf->queryWithGrad(pt);
+            double d = _q.first; Vec2d gd = _q.second;
             double slack = d - obstacle_clearance;
             if (slack >= 0)
                 continue; // no violation → zero gradient

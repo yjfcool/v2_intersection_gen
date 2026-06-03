@@ -218,7 +218,7 @@ AdaptiveRefineResult adaptiveRefine(const BezierCurve&c,const SDFField&sdf,doubl
             double km=0;
             for(int i=0;i<=20;++i)km=std::max(km,seg.curvature(i/20.0));
             double ms=1e18;
-            for(int i=0;i<=20;++i){auto[d,_]=sdf.queryWithGrad(seg.evaluate(i/20.0));ms=std::min(ms,d);}
+            for(int i=0;i<=20;++i){std::pair<double,Vec2d> _q=sdf.queryWithGrad(seg.evaluate(i/20.0));ms=std::min(ms,_q.first);}
             if(km>kmax||ms<ptol){
                 double wt=0.5,wv=-1e18;
                 for(int i=1;i<20;++i){
@@ -226,7 +226,7 @@ AdaptiveRefineResult adaptiveRefine(const BezierCurve&c,const SDFField&sdf,doubl
                     double v=seg.curvature(t)-0.5*sdf.queryWithGrad(seg.evaluate(t)).first;
                     if(v>wv){wv=v;wt=t;}}
                 wt=std::max(0.1,std::min(0.9,wt));
-                auto[L,R]=seg.splitAt(wt);next.push_back(L);next.push_back(R);split=res.was_split=true;
+                std::pair<BezierSegment,BezierSegment> _sp=seg.splitAt(wt);next.push_back(_sp.first);next.push_back(_sp.second);split=res.was_split=true;
             }else next.push_back(seg);
         }
         res.curve.segs=next;if(!split)break;}

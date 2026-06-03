@@ -31,8 +31,8 @@ namespace detail {
 
     inline nlohmann::json mapToAttrMapJson(const std::map<std::string, std::string>& m) {
         nlohmann::json j = nlohmann::json::object();
-        for (const auto& [k, v] : m) {
-            j[k] = v;
+        for (auto it = m.begin(); it != m.end(); ++it) {
+            j[it->first] = it->second;
         }
         return j;
     }
@@ -40,8 +40,8 @@ namespace detail {
     inline std::map<std::string, std::string> attrMapFromJson(const nlohmann::json& j) {
         std::map<std::string, std::string> result;
         if (j.is_object()) {
-            for (const auto& [k, v] : j.items()) {
-                result[k] = v.get<std::string>();
+            for (auto it = j.items().begin(); it != j.items().end(); ++it) {
+                result[it.key()] = it.value().get<std::string>();
             }
         }
         return result;

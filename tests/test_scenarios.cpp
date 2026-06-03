@@ -58,8 +58,8 @@ static bool curveAvoidsPenetration(const ConnectivityCurve& cc,
     if (roi.empty()) return true;
     sdf.build(roi, inp.obstacles, 0.2, 0.0);
     for (auto& pt : cc.curve->sampleByArcLength(50)) {
-        auto [d, _] = sdf.queryWithGrad(pt);
-        if (d < -0.25) return false;   // >25cm penetration = failure
+        std::pair<double,Vec2d> _q = sdf.queryWithGrad(pt);
+        if (_q.first < -0.25) return false;   // >25cm penetration = failure
     }
     return true;
 }
@@ -102,8 +102,8 @@ static IntersectionInput build4Way(int lanes_per_arm = 1,
 
     std::vector<LaneId> entry[4], exitl[4];
     for (int a = 0; a < 4; ++a) {
-        auto [en, ex] = buildArm(arms[a], inp);
-        entry[a] = en; exitl[a] = ex;
+        std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm = buildArm(arms[a], inp);
+        entry[a] = _arm.first; exitl[a] = _arm.second;
     }
 
     // Road-edge boundaries (top/bottom/left/right of fence)
@@ -174,7 +174,7 @@ TEST_CASE("4-way: multi-lane (2 lanes per arm) — 1:1 connectivity", "[4way][mu
         {"E",{-12,0},{1, 0},2,2,3.5},{"W",{12, 0},{-1,0},2,2,3.5}
     };
     std::vector<LaneId> entry[4], exitl[4];
-    for (int a=0;a<4;++a){ auto [en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<4;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     // Per-arm: lane[0]=inner (left-turn dedicated), lane[1]=outer (straight/right)
     // N→S straight (outer-outer), N→E left (inner-inner), N→W right (outer-outer)
@@ -206,7 +206,7 @@ TEST_CASE("4-way: 1:N connectivity — one entry to two exits", "[4way][1toN]")
         {"E",{-12,0},{1,0},1,1,3.5},{"W",{12,0},{-1,0},1,1,3.5}
     };
     std::vector<LaneId> entry[4], exitl[4];
-    for (int a=0;a<4;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<4;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     // N lane splits to both S (straight) and E (left)
     addConn(inp, entry[0][0], exitl[1][0], ConnTurnType::Straight);
@@ -239,7 +239,7 @@ TEST_CASE("4-way: N:1 connectivity — two entries merge to one exit", "[4way][N
         {"E",{-12,0},{1,0},2,1,3.5},{"W",{12,0},{-1,0},2,1,3.5}
     };
     std::vector<LaneId> entry[4], exitl[4];
-    for (int a=0;a<4;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<4;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     // N lane[0] + N lane[1] → S exit[0] (merge: straight + straight-inner)
     addConn(inp, entry[0][0], exitl[1][0], ConnTurnType::Straight);
@@ -271,7 +271,7 @@ TEST_CASE("4-way: U-turn connections", "[4way][uturn]")
         {"E",{-10,0},{1,0},2,2,3.5},{"W",{10,0},{-1,0},2,2,3.5}
     };
     std::vector<LaneId> entry[4], exitl[4];
-    for (int a=0;a<4;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<4;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     for (int a=0;a<4;++a) {
         int opp=(a+2)%4;
@@ -360,7 +360,7 @@ static IntersectionInput buildTJunction(int lanes_per_arm = 1, double lane_w = 3
         {"W", { 10,0}, {-1,0}, lanes_per_arm, lanes_per_arm, lane_w},  // main west
     };
     std::vector<LaneId> entry[3], exitl[3];
-    for (int a=0;a<3;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<3;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     addRoadEdgeBoundary(inp,"TOP", {-14,14},{14,14});
     addRoadEdgeBoundary(inp,"BOT", {-14,-14},{14,-14});
@@ -416,7 +416,7 @@ TEST_CASE("T-junction: 2-lane arms with 1:N split at branch", "[T][1toN][multila
         {"W",{10, 0},{-1,0},2,2,3.5}, // main west
     };
     std::vector<LaneId> entry[3], exitl[3];
-    for (int a=0;a<3;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<3;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     // Branch N → left+right (1:2)
     addConn(inp, entry[0][0], exitl[1][0], ConnTurnType::TurnLeft);
@@ -483,7 +483,7 @@ static IntersectionInput buildYJunction(double lane_w = 3.5)
     };
     ArmDef arms[3] = {mkArm("A",a0), mkArm("B",a1), mkArm("C",a2)};
     std::vector<LaneId> entry[3], exitl[3];
-    for (int a=0;a<3;++a){ auto[en,ex]=buildArm(arms[a],inp); entry[a]=en; exitl[a]=ex; }
+    for (int a=0;a<3;++a){ std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp); entry[a]=_arm.first; exitl[a]=_arm.second; }
 
     // 6 connections
     struct CS{int f,t;ConnTurnType tt;};
@@ -538,7 +538,7 @@ TEST_CASE("Y-junction: 1:N — one arm splits to both others", "[Y][1toN]")
     };
     ArmDef arms[3]={mkArm("A",a0),mkArm("B",a1),mkArm("C",a2)};
     std::vector<LaneId> entry[3],exitl[3];
-    for(int a=0;a<3;++a){auto[en,ex]=buildArm(arms[a],inp);entry[a]=en;exitl[a]=ex;}
+    for(int a=0;a<3;++a){std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp);entry[a]=_arm.first;exitl[a]=_arm.second;}
 
     // A→B, A→C (1:2 split)
     addConn(inp,entry[0][0],exitl[1][0],ConnTurnType::TurnLeft);
@@ -604,8 +604,8 @@ static IntersectionInput buildRoundabout(double ring_r = 8.0,
     std::vector<LaneId> entry(4), exitl(4);
     for (int a=0;a<4;++a) {
         ArmDef def{raw[a].nm, raw[a].jpt, raw[a].dir, 1, 1, lane_w, 12.0};
-        auto [en,ex] = buildArm(def, inp);
-        entry[a] = en[0]; exitl[a] = ex[0];
+        std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm = buildArm(def, inp);
+        entry[a] = _arm.first[0]; exitl[a] = _arm.second[0];
     }
 
     // Central island obstacle
@@ -752,7 +752,7 @@ TEST_CASE("T-junction: U-turn on branch arm", "[T][uturn]")
         {"W",{ 10,0},{-1,0},1,1,3.5},
     };
     std::vector<LaneId> entry[3], exitl[3];
-    for (int a=0;a<3;++a){auto[en,ex]=buildArm(arms[a],inp);entry[a]=en;exitl[a]=ex;}
+    for (int a=0;a<3;++a){std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp);entry[a]=_arm.first;exitl[a]=_arm.second;}
 
     // Branch inner lane U-turns back
     addConn(inp, entry[0][0], exitl[0][0], ConnTurnType::UTurnLeft);
@@ -805,7 +805,7 @@ TEST_CASE("Y-junction: all U-turns (unusual but valid)", "[Y][uturn]")
     };
     ArmDef arms[3]={mkArm("A",a0),mkArm("B",a1),mkArm("C",a2)};
     std::vector<LaneId> entry[3],exitl[3];
-    for(int a=0;a<3;++a){auto[en,ex]=buildArm(arms[a],inp);entry[a]=en;exitl[a]=ex;}
+    for(int a=0;a<3;++a){std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp);entry[a]=_arm.first;exitl[a]=_arm.second;}
 
     // Inner lanes U-turn, outer lanes do cross-arm turns
     for(int a=0;a<3;++a){
@@ -835,7 +835,7 @@ TEST_CASE("4-way: all turn types present simultaneously", "[4way][all_turns]")
         {"E",{-12,0},{1,0},3,3,3.5},{"W",{12,0},{-1,0},3,3,3.5},
     };
     std::vector<LaneId> entry[4],exitl[4];
-    for(int a=0;a<4;++a){auto[en,ex]=buildArm(arms[a],inp);entry[a]=en;exitl[a]=ex;}
+    for(int a=0;a<4;++a){std::pair<std::vector<LaneId>,std::vector<LaneId>> _arm=buildArm(arms[a],inp);entry[a]=_arm.first;exitl[a]=_arm.second;}
 
     for(int a=0;a<4;++a){
         int opp=(a+2)%4,left=(a+1)%4,right=(a+3)%4;

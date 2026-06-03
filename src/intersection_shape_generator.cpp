@@ -25,8 +25,10 @@ inline const char* turnTypeName(ConnTurnType t) {
 }
 
 static ConnTurnType inferTurn(const Connectivity& conn, const IntersectionInput& inp) {
-    auto [p0,t0] = inp.entryPtDir(conn.entry_lane_id);
-    auto [p1,t1] = inp.exitPtDir(conn.exit_lane_id);
+    std::pair<Vec2d, Vec2d> _entry = inp.entryPtDir(conn.entry_lane_id);
+    Vec2d p0 = _entry.first; Vec2d t0 = _entry.second;
+    std::pair<Vec2d, Vec2d> _exit = inp.exitPtDir(conn.exit_lane_id);
+    Vec2d p1 = _exit.first; Vec2d t1 = _exit.second;
     Vec2d te = (p1 - p0);
     if (te.norm() < 1e-6)
         return ConnTurnType::Straight;

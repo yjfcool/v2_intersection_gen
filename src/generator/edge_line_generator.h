@@ -56,7 +56,8 @@ public:
         }
 
         // Process each (enterGroupId, exitGroupId) group
-        for(auto& [key, groupCls] : pairGroups) {
+        for(auto& kv : pairGroups) {
+            auto& key = kv.first; (void)key; auto& groupCls = kv.second;
             // Sort by enter lane order (inner to outer)
             std::vector<const ConnectivityCurve*> sorted = groupCls;
             std::sort(sorted.begin(), sorted.end(),

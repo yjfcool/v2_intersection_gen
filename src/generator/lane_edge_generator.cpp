@@ -63,8 +63,8 @@ std::vector<ConnectivityLaneEdge> LaneEdgeGenerator::generate(
                     return{exitLineTangent(ln->geometry.points),exitLineTangent(ln->geometry.points)};
             };
             // Use average of adjacent lane tangents for shared boundaries
-            auto[et_l,dummy_l]=getLaneTangents(b>0?b-1:b);
-            auto[et_r,dummy_r]=getLaneTangents(b<N?b:b-1);
+            std::pair<Vec2d,Vec2d> _tl=getLaneTangents(b>0?b-1:b); Vec2d et_l=_tl.first;
+            std::pair<Vec2d,Vec2d> _tr=getLaneTangents(b<N?b:b-1); Vec2d et_r=_tr.first;
             Vec2d et=(et_l+et_r);
             if(et.norm()<1e-8)et={1,0};//group.direction;
             else et.normalize();

@@ -138,9 +138,9 @@ TEST_CASE("optimiseCurve avoids central obstacle", "[optimizer]") {
 
     // Check no sample point penetrates the raw obstacle
     for (auto& pt : result.sampleByArcLength(40)) {
-        auto [d,_] = sdf.queryWithGrad(pt);
+        std::pair<double,Vec2d> _q = sdf.queryWithGrad(pt);
         // Allow small numerical tolerance
-        REQUIRE(d > -0.15);
+        REQUIRE(_q.first > -0.15);
     }
 }
 
@@ -214,8 +214,8 @@ TEST_CASE("Level-1: initial arch has no obstacle penetration", "[bypass][L1][cle
     SDFField sdf_raw;sdf_raw.build(roi,{obs},0.2,0.0);
     double min_d=1e18;
     for(auto& pt:init.sampleByArcLength(50)){
-        auto[d,dum]=sdf_raw.queryWithGrad(pt);
-        min_d=std::min(min_d,d);
+        std::pair<double,Vec2d> _q=sdf_raw.queryWithGrad(pt);
+        min_d=std::min(min_d,_q.first);
     }
     REQUIRE(min_d > -0.15);  // ≤15cm penetration in initial (before optim)
 }
@@ -269,8 +269,8 @@ TEST_CASE("Level-2: full-param optimiseCurve avoids obstacle", "[bypass][L2][cle
     SDFField sdf_raw;sdf_raw.build(roi,{obs},0.2,0.0);
     double min_d=1e18;
     for(auto& pt:result.sampleByArcLength(60)){
-        auto[d,dum]=sdf_raw.queryWithGrad(pt);
-        min_d=std::min(min_d,d);
+        std::pair<double,Vec2d> _q=sdf_raw.queryWithGrad(pt);
+        min_d=std::min(min_d,_q.first);
     }
     REQUIRE(min_d > -0.25);
 }

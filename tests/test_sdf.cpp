@@ -26,8 +26,8 @@ TEST_CASE("SDFField: point far from obstacle is safe", "[sdf]") {
     SDFField sdf;
     sdf.build(roi, {obs}, 0.2, 0.0);
 
-    auto [d, g] = sdf.queryWithGrad(Vec2d(5, 0));
-    REQUIRE(d > 3.0);   // ~4m from obstacle
+    std::pair<double, Vec2d> _q = sdf.queryWithGrad(Vec2d(5, 0));
+    REQUIRE(_q.first > 3.0);   // ~4m from obstacle
     REQUIRE(sdf.isSafe(Vec2d(5,0), 0.1));
 }
 
@@ -42,8 +42,8 @@ TEST_CASE("SDFField: point inside obstacle has negative SDF", "[sdf]") {
     SDFField sdf;
     sdf.build(roi, {obs}, 0.2, 0.0);
 
-    auto [d, g] = sdf.queryWithGrad(Vec2d(0,0));
-    REQUIRE(d < 0.0);
+    std::pair<double, Vec2d> _q = sdf.queryWithGrad(Vec2d(0,0));
+    REQUIRE(_q.first < 0.0);
     REQUIRE_FALSE(sdf.isSafe(Vec2d(0,0), 0.1));
 }
 
@@ -60,10 +60,10 @@ TEST_CASE("SDFField: gradient points away from obstacle", "[sdf]") {
 
     // Point to the right of obstacle
     Vec2d pt(2.5, 0);
-    auto [d, g] = sdf.queryWithGrad(pt);
-    REQUIRE(d > 0.0);
+    std::pair<double, Vec2d> _q = sdf.queryWithGrad(pt);
+    REQUIRE(_q.first > 0.0);
     // Gradient should point in +x direction (away from obstacle at x=1)
-    REQUIRE(g[0] > 0);
+    REQUIRE(_q.second[0] > 0);
 }
 
 TEST_CASE("SDFField: obstacle penalty is zero far away", "[sdf]") {
@@ -110,11 +110,11 @@ TEST_CASE("SDFField: buffer makes obstacle appear larger", "[sdf]") {
     sdf_buf.build   (roi, {obs}, 0.2, 0.5);  // 0.5m buffer
 
     Vec2d pt(1.3, 0);  // just outside raw obstacle
-    auto [d_raw, _1] = sdf_no_buf.queryWithGrad(pt);
-    auto [d_buf, _2] = sdf_buf.queryWithGrad(pt);
+    std::pair<double, Vec2d> _qn = sdf_no_buf.queryWithGrad(pt);
+    std::pair<double, Vec2d> _qb = sdf_buf.queryWithGrad(pt);
 
-    REQUIRE(d_raw > 0.0);   // outside raw obstacle
-    REQUIRE(d_buf < d_raw); // buffered obstacle brings boundary closer
+    REQUIRE(_qn.first > 0.0);   // outside raw obstacle
+    REQUIRE(_qb.first < _qn.first); // buffered obstacle brings boundary closer
 }
 
 TEST_CASE("SDFField: worldToCell / cellToWorld round-trip", "[sdf]") {
@@ -129,8 +129,8 @@ TEST_CASE("SDFField: worldToCell / cellToWorld round-trip", "[sdf]") {
     sdf.build(roi, {obs}, 0.5, 0.0);
 
     Vec2d world(2.3, -1.7);
-    auto [r,c] = sdf.worldToCell(world);
-    Vec2d back = sdf.cellToWorld(r, c);
+    std::pair<int,int> _wc = sdf.worldToCell(world);
+    Vec2d back = sdf.cellToWorld(_wc.first, _wc.second);
 
     // Should round-trip to within one cell
     REQUIRE((world-back).norm() < sdf.cellSize()*1.5);

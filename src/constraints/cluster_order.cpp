@@ -107,7 +107,8 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // For same-turn-type multiple connections (e.g. 3 right turns to 3 different exits),
     // we sort by exit lane identity to get a deterministic consistent ordering.
     // The generator will further refine same-type ordering geometrically.
-    for (auto& [lid, cids] : entry_order_) {
+    for (auto& kv : entry_order_) {
+        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
         std::stable_sort(cids.begin(), cids.end(), [&](const ConnId& a, const ConnId& b) {
             auto* ca = findConn(conns, a);
             auto* cb = findConn(conns, b);
@@ -126,7 +127,8 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // For a same-exit cluster, the natural order is OPPOSITE to entry order:
     // curves arriving from different directions at the same exit.
     // Use the same priority scheme — let the optimizer handle ordering.
-    for (auto& [lid, cids] : exit_order_) {
+    for (auto& kv : exit_order_) {
+        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
         std::stable_sort(cids.begin(), cids.end(), [&](const ConnId& a, const ConnId& b) {
             auto* ca = findConn(conns, a);
             auto* cb = findConn(conns, b);
@@ -141,7 +143,8 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     }
 
     // ── Step 4: Build constraint pairs from entry clusters ───────────────────
-    for (auto& [lid, cids] : entry_order_) {
+    for (auto& kv : entry_order_) {
+        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
         if (cids.size() > 1)
             addPairsFromCluster(cids, conns);
     }
@@ -149,15 +152,16 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // ── Step 5: Build constraint pairs from exit clusters ────────────────────
     // This is the KEY FIX: curves sharing the same exit lane must not cross
     // (e.g. conn32/right-turn and conn18/left-turn sharing exit 43242048).
-    for (auto& [lid, cids] : exit_order_) {
+    for (auto& kv : exit_order_) {
+        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
         if (cids.size() > 1)
             addPairsFromCluster(cids, conns);
     }
 }
 
 void ClusterOrderSolver::markObstacleExempt(CurvePair& pair, const Vec2d& pt, const SDFField& sdf, double r) {
-    auto [d,_] = sdf.queryWithGrad(pt);
-    if (d < r) {
+    std::pair<double,Vec2d> _q = sdf.queryWithGrad(pt);
+    if (_q.first < r) {
         pair.exempt = CrossExemption::ObstacleCross;
         pair.exempt_zone_radius = r;
     }

@@ -55,8 +55,8 @@ static bool straightLineClear(
     if (!sdf.valid()) return true;
     for (int i = 1; i < n; ++i) {
         double t = (double)i / n;
-        auto [d, dummy] = sdf.queryWithGrad((1-t)*p0 + t*p1);
-        if (d < clearance) return false;
+        std::pair<double, Vec2d> _q = sdf.queryWithGrad((1-t)*p0 + t*p1);
+        if (_q.first < clearance) return false;
     }
     return true;
 }
@@ -97,8 +97,8 @@ static ObstacleAABB probeObstacleAABB(
             double s = (double)ix / nx * len;
             double t = (double)iy / (ny/2) * sweep;
             Vec2d pt = p0 + s*along + t*perp;
-            auto [d, dummy] = sdf.queryWithGrad(pt);
-            if (d < clearance) {   // in or near obstacle (including safety margin)
+            std::pair<double, Vec2d> _q = sdf.queryWithGrad(pt);
+            if (_q.first < clearance) {   // in or near obstacle (including safety margin)
                 box.x_min = std::min(box.x_min, pt.x());
                 box.x_max = std::max(box.x_max, pt.x());
                 box.y_min = std::min(box.y_min, pt.y());
@@ -273,10 +273,12 @@ static int chooseSide(
     for (int i = 1; i < N; ++i) {
         double t = (double)i / N;
         Vec2d pt = p0 + t * (p1 - p0);
-        auto [d, dummy] = sdf.queryWithGrad(pt);
+        std::pair<double, Vec2d> _q = sdf.queryWithGrad(pt);
+        double d = _q.first;
         if (d > SAMPLE_THRESH) continue;
-        auto [d_lp, dum1] = sdf.queryWithGrad(pt + PROBE * perp);
-        auto [d_lm, dum2] = sdf.queryWithGrad(pt - PROBE * perp);
+        std::pair<double, Vec2d> _ql = sdf.queryWithGrad(pt + PROBE * perp);
+        std::pair<double, Vec2d> _qm = sdf.queryWithGrad(pt - PROBE * perp);
+        double d_lp = _ql.first; double d_lm = _qm.first;
         double lat_grad = (d_lp - d_lm) / (2 * PROBE);
         double w = 1.0 / (d + 0.05);
         weighted_lat += w * lat_grad;
@@ -347,8 +349,8 @@ static BezierCurve geometricBypass(
 
     // Verify apex is obstacle-free; if not (apex lands inside obstacle), try other side.
     // Use a meaningful threshold regardless of clearance value.
-    auto [d_apex, dummy] = sdf.queryWithGrad(apex);
-    if (d_apex < -0.1) {
+    std::pair<double, Vec2d> _qa = sdf.queryWithGrad(apex);
+    if (_qa.first < -0.1) {
         apex = computeApex(box, p0, p1, -side, apex_clearance);
     }
 
@@ -357,8 +359,8 @@ static BezierCurve geometricBypass(
     bool arch_clear = true;
     for (auto& seg : arch.segs) {
         for (int i = 1; i < 20; ++i) {
-            auto [d, dum] = sdf.queryWithGrad(seg.evaluate((double)i/20));
-            if (d < clearance * 0.5) { arch_clear = false; break; }
+            std::pair<double, Vec2d> _qs = sdf.queryWithGrad(seg.evaluate((double)i/20));
+            if (_qs.first < clearance * 0.5) { arch_clear = false; break; }
         }
         if (!arch_clear) break;
     }
@@ -369,8 +371,8 @@ static BezierCurve geometricBypass(
         bool arch2_clear = true;
         for (auto& seg : arch2.segs) {
             for (int i = 1; i < 20; ++i) {
-                auto [d, dum] = sdf.queryWithGrad(seg.evaluate((double)i/20));
-                if (d < clearance * 0.5) { arch2_clear = false; break; }
+                std::pair<double, Vec2d> _qs2 = sdf.queryWithGrad(seg.evaluate((double)i/20));
+                if (_qs2.first < clearance * 0.5) { arch2_clear = false; break; }
             }
             if (!arch2_clear) break;
         }
@@ -472,9 +474,9 @@ static BezierCurve geometricInitLevel2(
             for (int i=1; i<=n_probe; ++i) {
                 double s = (double)i/(n_probe+1)*len;
                 Vec2d mid_pt = p0 + s*along;
-                auto [dl,dum1] = sdf.queryWithGrad(mid_pt + 1.5*perp);
-                auto [dr,dum2] = sdf.queryWithGrad(mid_pt - 1.5*perp);
-                d_left += dl; d_right += dr;
+                std::pair<double, Vec2d> _ql2 = sdf.queryWithGrad(mid_pt + 1.5*perp);
+                std::pair<double, Vec2d> _qr2 = sdf.queryWithGrad(mid_pt - 1.5*perp);
+                d_left += _ql2.first; d_right += _qr2.first;
             }
             side = (d_left >= d_right) ? 1.0 : -1.0;
         }
@@ -482,9 +484,9 @@ static BezierCurve geometricInitLevel2(
     // Safety check: if preferred side is inside an obstacle, flip to other side.
     {
         Vec2d mid_pt = p0 + 0.5*(p1-p0);
-        auto [d_chosen, dum_c]   = sdf.queryWithGrad(mid_pt + side * 1.5 * perp);
-        auto [d_opposite, dum_o] = sdf.queryWithGrad(mid_pt - side * 1.5 * perp);
-        if (d_chosen < 0.0 && d_opposite > d_chosen) {
+        std::pair<double, Vec2d> _qc = sdf.queryWithGrad(mid_pt + side * 1.5 * perp);
+        std::pair<double, Vec2d> _qo = sdf.queryWithGrad(mid_pt - side * 1.5 * perp);
+        if (_qc.first < 0.0 && _qo.first > _qc.first) {
             side = -side;  // preferred side is inside obstacle, flip
         }
     }
@@ -495,8 +497,8 @@ static BezierCurve geometricInitLevel2(
     double min_d = 1e18;
     for (int i=1; i<20; ++i) {
         double t=(double)i/20;
-        auto [d,dum] = sdf.queryWithGrad((1-t)*p0+t*p1);
-        min_d = std::min(min_d, d);
+        std::pair<double, Vec2d> _qd = sdf.queryWithGrad((1-t)*p0+t*p1);
+        min_d = std::min(min_d, _qd.first);
     }
     double lateral_needed = std::max(1.0, -min_d + 1.5);  // how far to bypass
 
@@ -548,8 +550,8 @@ BezierCurve buildInitialCurve(
         BezierSegment trial = makeCubicG1(p0, t0.normalized(), p1, t1.normalized(), 0.4);
         bool bezier_clear = true;
         for (int i = 1; i < 20; ++i) {
-            auto [d, dummy] = sdf.queryWithGrad(trial.evaluate((double)i/20));
-            if (d < INIT_CLEARANCE) { bezier_clear = false; break; }
+            std::pair<double, Vec2d> _qt = sdf.queryWithGrad(trial.evaluate((double)i/20));
+            if (_qt.first < INIT_CLEARANCE) { bezier_clear = false; break; }
         }
         if (bezier_clear) {
             BezierCurve c;
@@ -626,12 +628,12 @@ BezierCurve buildTwoSegmentUTurn(
 
     // Try the preferred side; if SDF shows obstacle, try opposite
     if (sdf.valid()) {
-        auto [d_apex, dum1] = sdf.queryWithGrad(apex);
-        if (d_apex < 0.3) {
+        std::pair<double, Vec2d> _qa2 = sdf.queryWithGrad(apex);
+        if (_qa2.first < 0.3) {
             // Try mirrored apex (opposite forward direction)
             Vec2d apex_alt = base_mid - forward_dir * apex_forward;
-            auto [d_alt, dum2] = sdf.queryWithGrad(apex_alt);
-            if (d_alt > d_apex) {
+            std::pair<double, Vec2d> _qalt = sdf.queryWithGrad(apex_alt);
+            if (_qalt.first > _qa2.first) {
                 apex = apex_alt;
                 forward_dir = -forward_dir;
             }

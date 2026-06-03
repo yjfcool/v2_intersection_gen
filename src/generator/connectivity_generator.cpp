@@ -89,7 +89,7 @@ void GlobalCoordinator::build(const std::vector<Connectivity>&conns,const Inters
     std::map<int,OptGroup>pm;
     for(auto&c:conns){int p=turnPriority(c.turn_type);pm[p].conn_ids.push_back(c.id);pm[p].priority=p;}
     groups_.clear();
-    for(auto&[p,g]:pm)groups_.push_back(g);
+    for(auto& kv : pm) groups_.push_back(kv.second);
 }
 void GlobalCoordinator::addSoftObstacles(SDFField&,const std::vector<ConnectivityCurve>&,double)const{}
 
@@ -100,9 +100,9 @@ std::vector<SiblingCurve> ConnectivityGenerator::buildSiblings(
     const ConnId&id,const std::unordered_map<ConnId,BezierCurve>&done,const ClusterOrderSolver&cs)const
 {
     std::vector<SiblingCurve>sibs;
-    for(auto&[cid,curve]:done){if(cid==id)continue;
-        SiblingCurve s; s.curve=curve;
-        auto ex=cs.exemptionOf(id,cid);
+    for(auto& kv : done){if(kv.first==id)continue;
+        SiblingCurve s; s.curve=kv.second;
+        auto ex=cs.exemptionOf(id,kv.first);
         // ClusterOrderSolver now registers pairs for BOTH same-entry AND same-exit
         // clusters. If exemptionOf returns None, there is genuinely no cluster
         // relationship (different entry AND different exit lanes) → structural
@@ -240,8 +240,10 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     cc.id=conn.id;cc.entry_lane_id=conn.entry_lane_id;
     cc.exit_lane_id=conn.exit_lane_id;cc.turn_type=conn.turn_type;
 
-    auto[p0,t0]=input.entryPtDir(conn.entry_lane_id);
-    auto[p1,t1]=input.exitPtDir(conn.exit_lane_id);
+    std::pair<Vec2d,Vec2d> _entry=input.entryPtDir(conn.entry_lane_id);
+    Vec2d p0=_entry.first; Vec2d t0=_entry.second;
+    std::pair<Vec2d,Vec2d> _exit=input.exitPtDir(conn.exit_lane_id);
+    Vec2d p1=_exit.first; Vec2d t1=_exit.second;
 
     double lw=3.5;
     if(auto*l=input.findLane(conn.entry_lane_id))lw=l->width;

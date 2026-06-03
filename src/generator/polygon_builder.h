@@ -373,8 +373,8 @@ private:
         size_t end = (dist(poly.front(),poly.back())<EPS) ? n-1 : n;
         for(size_t i=0;i<end;++i){
             size_t j=(i+1)%end;
-            auto [d,t] = pointToSegment(p,poly[i],poly[j]);
-            if(d<minD){ minD=d; insertAfter=(int)i; }
+            std::pair<double,double> _seg = pointToSegment(p,poly[i],poly[j]);
+            if(_seg.first<minD){ minD=_seg.first; insertAfter=(int)i; }
         }
         poly.insert(poly.begin()+insertAfter+1, p);
     }

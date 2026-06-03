@@ -119,8 +119,8 @@ void SDFField::updateRegion(const BoundingBox2d& dirty, const std::vector<Obstac
     std::vector<Polygon2d> lp;
     for (auto& o : obs)
         lp.push_back(buf > 0 ? bufferPolygon(o.geometry, buf) : o.geometry);
-    auto [rm,cm] = worldToCell(dirty.min_pt);
-    auto [rx,cx] = worldToCell(dirty.max_pt);
+    std::pair<int,int> _mc = worldToCell(dirty.min_pt); int rm = _mc.first; int cm = _mc.second;
+    std::pair<int,int> _xc = worldToCell(dirty.max_pt); int rx = _xc.first; int cx = _xc.second;
     rm = std::max(0, rm - 1);
     cm = std::max(0, cm - 1);
     rx = std::min(rows_ - 1, rx + 1);
@@ -165,18 +165,19 @@ std::pair<double, Vec2d> SDFField::queryWithGrad(const Vec2d& pt) const {
 }
 
 bool SDFField::isSafe(const Vec2d& pt, double cl) const {
-    auto [d,_] = queryWithGrad(pt);
-    return d >= cl;
+    std::pair<double,Vec2d> _q = queryWithGrad(pt);
+    return _q.first >= cl;
 }
 
 double SDFField::obstaclePenalty(const Vec2d& pt, double cl) const {
-    auto [d,_] = queryWithGrad(pt);
-    double s = d - cl;
+    std::pair<double,Vec2d> _q2 = queryWithGrad(pt);
+    double s = _q2.first - cl;
     return s >= 0 ? 0.0 : s * s;
 }
 
 Vec2d SDFField::obstaclePenaltyGrad(const Vec2d& pt, double cl) const {
-    auto [d,gd] = queryWithGrad(pt);
+    std::pair<double,Vec2d> _q3 = queryWithGrad(pt);
+    double d = _q3.first; Vec2d gd = _q3.second;
     double s = d - cl;
     return s >= 0 ? Vec2d(0, 0) : 2.0 * s * gd;
 }
