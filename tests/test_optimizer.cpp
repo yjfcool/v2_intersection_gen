@@ -5,7 +5,7 @@
 #include "curve/hermite_init.h"
 #include "optimizer/sdf_field.h"
 
-#include "iodata_shapefile.h"
+#include "io/iodata_shapefile.h"
 
 using Catch::Matchers::WithinAbs;
 

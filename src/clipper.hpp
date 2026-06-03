@@ -470,7 +470,7 @@ namespace ClipperUtil {
 
     // InflatePaths 偏移/膨胀（对齐 Clipper2::InflatePaths）
     inline PathsD InflatePaths(const PathsD& paths,
-                          double delta,
+                          double delta, //米制单位
                           ClipperLib::JoinType jt = ClipperLib::JoinType::jtMiter,
                           ClipperLib::EndType et = ClipperLib::EndType::etClosedPolygon,
                           double miterLimit = 2.0,
@@ -483,7 +483,7 @@ namespace ClipperUtil {
         ClipperLib::ClipperOffset co(miterLimit, arcTolerance);
         co.AddPaths(intPaths, jt, et);
         ClipperLib::Paths solution;
-        co.Execute(solution, static_cast<ClipperLib::cInt>(std::round(delta * scale)));
+        co.Execute(solution, static_cast<ClipperLib::cInt>(std::round(delta)));// * scale
         return ToDoublePaths(solution, scale);
     }
 }

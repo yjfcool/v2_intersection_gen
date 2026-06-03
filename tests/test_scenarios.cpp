@@ -12,6 +12,7 @@
 #include "scenario_builder.h"
 #include "optimizer/sdf_field.h"
 #include <cmath>
+#include <vector>
 
 #include "io/iodata_shapefile.h"
 #include "io/iodata_json.h"
@@ -908,7 +909,7 @@ TEST_CASE("All scenario types: perf stats populated and sane", "[perf]")
 #ifdef TEST_FILE
 TEST_CASE("Actual intersection of osm", "[actual]")
 {
-    std::string fpth = std::string(PROJECT_ROOT_DIR) + "/intersection_input.json"
+    std::string fpth = std::string(PROJECT_ROOT_DIR) + "/intersection_input.json";
     std::vector<IntersectionInput> inputs = {IntersectionIO::loadFromFile(fpth)};
     for (auto& inp : inputs) {
         IntersectionShapeGenerator gen;
