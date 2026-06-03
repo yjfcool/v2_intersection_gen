@@ -214,7 +214,7 @@ inline double polygonArea(const std::vector<Vec2d>& p) { return std::abs(polygon
 // Exit  line: geometry runs intersection→outside; first point is at intersection edge.
 inline Vec2d getConnPoint(const std::vector<Vec2d>& points, bool is_entryline) {
     if (points.size() < 1) return Vec2d(0, 0);
-    is_entryline ? points.back() : points.front();
+    return is_entryline ? points.back() : points.front();
 }
 
 inline Vec2d getConnTangent(const std::vector<Vec2d>& points, bool is_entryline) {
