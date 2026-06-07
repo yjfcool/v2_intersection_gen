@@ -1,17 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  penalty_cost.cpp  —  optimised implementation
-//
-//  Performance improvements vs. v1:
-//  ① Cache rebuild: boundary segs + sibling polylines built ONCE per curve,
-//     not once per gradient evaluation.
-//  ② Obstacle gradient: analytic via SDF.queryWithGrad() — no central diff.
-//  ③ Smooth gradient: analytic via curvature derivative chain rule.
-//  ④ Secondary terms (boundary/fence/cluster): numeric diff but only when
-//     their weights are non-trivial AND violations actually exist.
-//  ⑤ operator() computes f and grad in a single forward pass.
-//  ⑥ Cluster check: O(n_sib × n_curve_pts) segment-distance scan on
-//     pre-sampled polylines, replaces O(4^depth) recursive subdivision.
-// ─────────────────────────────────────────────────────────────────────────────
 #include "penalty_cost.h"
 #include "constraints/fence_check.h"
 #include "curve/curve_utils.h"
@@ -20,12 +6,10 @@
 #include <algorithm>
 #include <limits>
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  PenaltyCostCache
-// ─────────────────────────────────────────────────────────────────────────────
-void PenaltyCostCache::rebuild(const std::vector<Boundary>& boundaries,
-                               const std::vector<SiblingCurve>& siblings,
-                               const Polygon2d& fence) {
+// ─── Cache rebuild ────────────────────────────────────────────────────────────
+void PenaltyCostCache::rebuild(
+        const std::vector<Boundary> &boundaries,
+        const std::vector<SiblingCurve> &siblings, const Polygon2d &fence) {
     bnd_segs.clear();
     for (auto& bnd : boundaries) {
         auto& pts = bnd.geometry.points;
@@ -38,10 +22,9 @@ void PenaltyCostCache::rebuild(const std::vector<Boundary>& boundaries,
         SiblingPoly sp;
         sp.exempt_a1 = sib.exempt_a1;
         sp.a2_radius = sib.exempt_a2_radius;
-        sp.pts = sib.curve.sampleByArcLength(24); // fixed 24-pt polyline
+        sp.pts = sib.curve.sampleByArcLength(24);
         sib_polys.push_back(std::move(sp));
     }
-
     fence_empty = fence.outer.empty();
 }
 
@@ -49,10 +32,8 @@ void PenaltyCost::buildCache() {
     cache_.rebuild(boundaries, siblings, fence);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Individual term evaluations (used for diagnostics & outer weight updates)
-// ─────────────────────────────────────────────────────────────────────────────
-double PenaltyCost::evalSmooth(const BezierCurve& c) const {
+// ─── Scalar terms ─────────────────────────────────────────────────────────────
+double PenaltyCost::evalSmooth(const BezierCurve &c) const {
     double cost = 0;
     constexpr int S = 16;
     for (auto& seg : c.segs) {
@@ -105,6 +86,9 @@ double PenaltyCost::evalFence(const BezierCurve& c) const {
     return cost;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  evalCluster — Order-Preserving Topology Constraint
+// ─────────────────────────────────────────────────────────────────────────────
 double PenaltyCost::evalCluster(const BezierCurve& c) const {
     double cost = 0;
     auto curve_pts = c.sampleByArcLength(24);
@@ -128,7 +112,7 @@ double PenaltyCost::evalCluster(const BezierCurve& c) const {
                     continue;
                 // a2 exemption
                 if (sp.a2_radius > 0 && sdf) {
-                    std::pair<double,Vec2d> _q = sdf->queryWithGrad(isect);
+                    std::pair<double, Vec2d> _q = sdf->queryWithGrad(isect);
                     if (_q.first < sp.a2_radius)
                         continue;
                 }
@@ -158,14 +142,8 @@ double PenaltyCost::evalCrosswalk(const BezierCurve& c) const {
     return cost;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  G1 endpoint hard-constraint enforcement
-//  Projects ctrl[1] of first segment onto the start tangent ray, and
-//  ctrl[2] of last segment onto the -(end tangent) ray.
-//  This guarantees the Bezier curve leaves p0 along t0 and arrives at p1 along t1
-//  regardless of what the optimiser does to those control points.
-// ─────────────────────────────────────────────────────────────────────────────
-static void enforceEndpointG1(
+// ─── G1 endpoint enforcement ──────────────────────────────────────────────────
+static void enforceG1(
     BezierCurve& c, const Vec2d& start_dir, const Vec2d& end_dir) {
     if (c.segs.empty())
         return;
@@ -192,29 +170,20 @@ static void enforceEndpointG1(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Analytic obstacle gradient
-//  d/dp_j J_obs = Σ_i  2·max(0,cl-d_i)·(-1)·(∂d_i/∂x·∂x/∂p_j + ∂d_i/∂y·∂y/∂p_j)
-//
-//  ∂c(t)/∂p_j  for the j-th control point component:
-//    For segment k: ctrl[1].x = params[4k], ctrl[1].y = params[4k+1]
-//                   ctrl[2].x = params[4k+2], ctrl[2].y = params[4k+3]
-//    Bezier basis: B_{1,3}(t)=3(1-t)²t, B_{2,3}(t)=3(1-t)t²
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Analytic obstacle gradient ───────────────────────────────────────────────
 void PenaltyCost::addObstacleGrad(
     const BezierCurve& c, const VecXd& params, double w, VecXd& grad) const {
     if (!sdf || w < 1e-15)
         return;
     constexpr int S = 20;
-    int n_segs = (int)c.segs.size();
-
-    for (int k = 0; k < n_segs; ++k) {
+    for (int k = 0; k < c.segs.size(); ++k) {
         auto& seg = c.segs[k];
         for (int i = 0; i <= S; ++i) {
             double t = (double)i / S;
             Vec2d pt = seg.evaluate(t);
-            std::pair<double, Vec2d> _q = sdf->queryWithGrad(pt);
-            double d = _q.first; Vec2d gd = _q.second;
+            auto kv = sdf->queryWithGrad(pt);
+            double& d = kv.first;
+            Vec2d& gd = kv.second;
             double slack = d - obstacle_clearance;
             if (slack >= 0)
                 continue; // no violation → zero gradient
@@ -238,37 +207,25 @@ void PenaltyCost::addObstacleGrad(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 //  Analytic smooth gradient
-//  Curvature κ = |c'×c''| / |c'|³
-//  Gradient via auto-diff approximation:
-//    d(κ²)/dp_j ≈ (κ(p+δ)²-κ(p-δ)²) / 2δ   — but only for the 4 params of
-//    the relevant segment (sparse: each sample point depends only on seg k params)
-//  This replaces full 2n evaluations with 4×2 per-segment evals.
-// ─────────────────────────────────────────────────────────────────────────────
 void PenaltyCost::addSmoothGrad(
     const BezierCurve& c, const VecXd& params, double w, VecXd& grad) const {
     if (w < 1e-15)
         return;
     constexpr int S = 12;
     const double h = 1e-4;
-    int n_segs = (int)c.segs.size();
-
-    for (int k = 0; k < n_segs; ++k) {
+    for (int k = 0; k < c.segs.size(); ++k) {
         int base = 4 * k;
         double ds = c.segs[k].arcLength(S) / S;
-
         for (int j = 0; j < 4; ++j) {
-            // 4 params per segment
-            // Perturb only the j-th param of segment k (sparse structure)
             VecXd pp = params, pm = params;
             pp[base + j] += h;
             pm[base + j] -= h;
 
             auto cp = full_param_mode ? curveFromParamsFull(pp, proto) : curveFromParams(pp, proto);
             auto cm = full_param_mode ? curveFromParamsFull(pm, proto) : curveFromParams(pm, proto);
-            enforceEndpointG1(cp, start_tan_dir, end_tan_dir);
-            enforceEndpointG1(cm, start_tan_dir, end_tan_dir);
+            enforceG1(cp, start_tan_dir, end_tan_dir);
+            enforceG1(cm, start_tan_dir, end_tan_dir);
 
             double fp = 0, fm = 0;
             for (int i = 0; i <= S; ++i) {
@@ -288,41 +245,32 @@ void PenaltyCost::addSmoothGrad(
 //  ONLY runs when these terms have non-zero cost → skipped in clean iterations.
 // ─────────────────────────────────────────────────────────────────────────────
 void PenaltyCost::addNumericGrad(
-    const VecXd& params, double w_bnd, double w_fence, double w_cluster, double w_xwalk, VecXd& grad) {
-    // Early-out: check if any of these secondary terms have violations at all
+        const VecXd &params, double wb, double wf, double wc, double wx, VecXd &grad) {
     BezierCurve c0 = curveFromParams(params, proto);
-    bool need_bnd = (w_bnd > 1e-6 && evalBoundary(c0) > 1e-9);
-    bool need_fence = (w_fence > 1e-6 && evalFence(c0) > 1e-9);
-    bool need_cluster = (w_cluster > 1e-6 && evalCluster(c0) > 1e-9);
-    bool need_xwalk = (w_xwalk > 1e-6 && evalCrosswalk(c0) > 1e-9);
-
-    if (!need_bnd && !need_fence && !need_cluster && !need_xwalk)
-        return;
-
+    bool nb = (wb > 1e-6 && evalBoundary(c0) > 1e-9);
+    bool nf = (wf > 1e-6 && evalFence(c0) > 1e-9);
+    bool nc = (wc > 1e-6 && evalCluster(c0) > 1e-9);
+    bool nx = (wx > 1e-6 && evalCrosswalk(c0) > 1e-9);
+    if (!nb && !nf && !nc && !nx)return;
     const double h = 1e-4;
     const int n = (int)params.size();
     VecXd p = params;
-
     for (int i = 0; i < n; ++i) {
         double orig = p[i];
+        auto eval = [&](VecXd &pv) {
+            auto cv = full_param_mode ? curveFromParamsFull(pv, proto) : curveFromParams(pv, proto);
+            enforceG1(cv, start_tan_dir, end_tan_dir);
+            double f = 0;
+            if (nb)f += wb * evalBoundary(cv);
+            if (nf)f += wf * evalFence(cv);
+            if (nc)f += wc * evalCluster(cv);
+            if (nx)f += wx * evalCrosswalk(cv);
+            return f;
+        };
         p[i] = orig + h;
-        auto cp = full_param_mode ? curveFromParamsFull(p, proto) : curveFromParams(p, proto);
-        enforceEndpointG1(cp, start_tan_dir, end_tan_dir);
-        double fp = 0;
-        if (need_bnd) fp += w_bnd * evalBoundary(cp);
-        if (need_fence) fp += w_fence * evalFence(cp);
-        if (need_cluster) fp += w_cluster * evalCluster(cp);
-        if (need_xwalk) fp += w_xwalk * evalCrosswalk(cp);
-
+        double fp = eval(p);
         p[i] = orig - h;
-        auto cm = full_param_mode ? curveFromParamsFull(p, proto) : curveFromParams(p, proto);
-        enforceEndpointG1(cm, start_tan_dir, end_tan_dir);
-        double fm = 0;
-        if (need_bnd) fm += w_bnd * evalBoundary(cm);
-        if (need_fence) fm += w_fence * evalFence(cm);
-        if (need_cluster) fm += w_cluster * evalCluster(cm);
-        if (need_xwalk) fm += w_xwalk * evalCrosswalk(cm);
-
+        double fm = eval(p);
         grad[i] += (fp - fm) / (2 * h);
         p[i] = orig;
     }
@@ -336,14 +284,9 @@ double PenaltyCost::operator()(const VecXd& params, VecXd& grad) {
     const int n = (int)params.size();
     grad.resize(n);
     grad.setZero();
-
-    // Mode-aware curve reconstruction:
-    // Level-1: curveFromParams (join pts fixed, compact params)
-    // Level-2: curveFromParamsFull (join pts free, full params)
     BezierCurve c = full_param_mode ? curveFromParamsFull(params, proto) : curveFromParams(params, proto);
 
-    // Hard-enforce G1 at endpoints (prevents optimiser from rotating endpoint tangents)
-    enforceEndpointG1(c, start_tan_dir, end_tan_dir);
+    enforceG1(c, start_tan_dir, end_tan_dir);
 
     // ── Cost evaluation ───────────────────────────────────────────────────
     double f_smooth = evalSmooth(c);
@@ -360,14 +303,13 @@ double PenaltyCost::operator()(const VecXd& params, VecXd& grad) {
         + weights.cluster * f_cluster
         + weights.crosswalk * f_xwalk;
 
-    // ── Gradient (analytic for dominant terms) ────────────────────────────
-    // Term 1: smooth — sparse analytic (4 params per segment, S samples each)
+    // smooth — sparse analytic (4 params per segment, S samples each)
     addSmoothGrad(c, params, weights.smooth, grad);
 
-    // Term 2: obstacle — analytic via SDF gradient (dominant + cheap)
+    // obstacle — analytic via SDF gradient (dominant + cheap)
     addObstacleGrad(c, params, weights.obstacle, grad);
 
-    // Terms 3-6: numeric diff, but skipped when cost is zero (common after convergence)
+    // numeric diff, but skipped when cost is zero (common after convergence)
     addNumericGrad(params, weights.boundary, weights.fence, weights.cluster, weights.crosswalk, grad);
 
     return f;
@@ -376,15 +318,13 @@ double PenaltyCost::operator()(const VecXd& params, VecXd& grad) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  optimiseCurve — outer adaptive-weight loop
 // ─────────────────────────────────────────────────────────────────────────────
-BezierCurve optimiseCurve(PenaltyCost& cost, LBFGSSolver& solver,
-                          const BezierCurve& initial, int outer_iters) {
+BezierCurve optimiseCurve(
+    PenaltyCost& cost, LBFGSSolver& solver, const BezierCurve& initial, int outer_iters) {
     cost.proto = initial;
-    cost.buildCache(); // build once before inner loop
+    cost.buildCache();
     VecXd params = cost.full_param_mode ? curveToParamsFull(initial) : curveToParams(initial);
-
     for (int outer = 0; outer < outer_iters; ++outer) {
-        auto res = solver.solve(
-            [&](const VecXd& p, VecXd& g) { return cost(p, g); }, params);
+        auto res = solver.solve([&](const VecXd& p, VecXd& g) { return cost(p, g); }, params);
         params = res.x;
 
         BezierCurve c = curveFromParams(params, cost.proto);

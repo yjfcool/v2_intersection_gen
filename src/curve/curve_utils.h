@@ -15,6 +15,6 @@ double minSDFAlongCurve(const BezierCurve&, const SDFField&, int sps = 20);
 double distToAllEndpoints(const Vec2d&, const BezierCurve&, const BezierCurve&);
 
 // src/constraints/intersection_check.h
-std::vector<Vec2d> curveCrossings(const BezierCurve&,const BezierCurve&,double tol=0.01);
-bool bboxOverlap(const BezierCurve&,const BezierCurve&);
-bool curvesIntersectBusiness(const BezierCurve&,const BezierCurve&,double ep=0.01);
+std::vector<Vec2d> curveCrossings(const BezierCurve&, const BezierCurve&, double tol = 0.01);
+bool bboxOverlap(const BezierCurve&, const BezierCurve&);
+bool curvesIntersectBusiness(const BezierCurve&, const BezierCurve&, double ep = 0.01);

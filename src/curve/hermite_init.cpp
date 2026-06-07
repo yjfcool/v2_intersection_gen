@@ -1,16 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  hermite_init.cpp  —  Two-level obstacle avoidance strategy
-//
-//  Level-1 (方案A): Geometric Direct Construction
-//    Fast-path for ≤3 convex obstacles.
-//    Steps: straightLine check → obstacle AABB union → compute apex
-//    → build 2-segment G1 Bezier arch.  Zero iterations, analytic quality.
-//
-//  Level-2 (方案C): Full control-point optimisation
-//    Fallback for multi-obstacle / concave / Level-1 failure.
-//    ALL control points (incl. join points) are optimisation variables.
-//    No frozen topology. SDF penalty drives smooth arch naturally.
-// ─────────────────────────────────────────────────────────────────────────────
 #include "hermite_init.h"
 #include "optimizer/sdf_field.h"
 #include "utils.h"
@@ -22,18 +9,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 static bool segmentsIntersect_internal(
     const Vec2d& a, const Vec2d& b, const Vec2d& c, const Vec2d& d, Vec2d* out = nullptr) {
-    Vec2d r = b-a, s = d-c;
+    Vec2d r = b - a, s = d - c;
     double den = cross2d(r, s);
     if (std::abs(den) < 1e-12) return false;
-    Vec2d ac = c-a;
+    Vec2d ac = c - a;
     double t = cross2d(ac, s) / den;
     double u = cross2d(ac, r) / den;
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-        if (out) *out = a + t*r;
+        if (out) *out = a + t * r;
         return true;
     }
     return false;
 }
+
 static constexpr double MAX_TAN_DEV = 60.0 * M_PI / 180.0;
 
 static Vec2d clampTangent(const Vec2d& tan, const Vec2d& ref, double max_a) {
@@ -41,8 +29,8 @@ static Vec2d clampTangent(const Vec2d& tan, const Vec2d& ref, double max_a) {
     if (t.dot(ref) >= std::cos(max_a)) return t;
     double sg = cross2d(ref, t) >= 0 ? 1.0 : -1.0;
     double ca = std::cos(max_a), sa = std::sin(max_a);
-    return Vec2d(ref[0]*ca - sg*ref[1]*sa,
-                 ref[0]*sa*sg + ref[1]*ca);
+    return Vec2d(ref[0] * ca - sg * ref[1] * sa,
+                 ref[0] * sa * sg + ref[1] * ca);
 }
 
 // SDF-sampled straight line clearance check.
@@ -55,7 +43,7 @@ static bool straightLineClear(
     if (!sdf.valid()) return true;
     for (int i = 1; i < n; ++i) {
         double t = (double)i / n;
-        std::pair<double, Vec2d> _q = sdf.queryWithGrad((1-t)*p0 + t*p1);
+        std::pair<double, Vec2d> _q = sdf.queryWithGrad((1 - t) * p0 + t * p1);
         if (_q.first < clearance) return false;
     }
     return true;
@@ -64,7 +52,6 @@ static bool straightLineClear(
 // ─────────────────────────────────────────────────────────────────────────────
 //  Level-1: Geometric Direct Construction (方案A)
 // ─────────────────────────────────────────────────────────────────────────────
-
 // Union-AABB of all obstacle buffered geometries visible to the SDF field.
 // We probe the SDF along the direct path to find the obstacle's bounding box
 // without needing obstacle polygon data (SDF is already available).
@@ -77,28 +64,28 @@ static ObstacleAABB probeObstacleAABB(
     const SDFField& sdf, const Vec2d& p0, const Vec2d& p1, double clearance = 0.0) {
     // Sample dense grid in the neighbourhood of the direct path
     ObstacleAABB box;
-    box.x_min = box.y_min =  1e18;
+    box.x_min = box.y_min = 1e18;
     box.x_max = box.y_max = -1e18;
 
     int nx = 60, ny = 30;
     Vec2d along = (p1 - p0);
     double len = along.norm();
     if (len < 1e-6) return box;
-    along = along * (1.0/len);
+    along = along * (1.0 / len);
     Vec2d perp{-along[1], along[0]};
     // Sweep width: use a fixed narrow strip (one lane width = 3.5m each side)
     // to avoid capturing obstacles far off the path axis.  A large sweep
     // caused the AABB to span the entire junction when multiple obstacles exist,
     // making obs_lat unreliable for side selection.
-    double sweep = 4.0;   // ±4m from path centre-line
+    double sweep = 4.0; // ±4m from path centre-line
 
     for (int ix = 0; ix <= nx; ++ix) {
-        for (int iy = -ny/2; iy <= ny/2; ++iy) {
+        for (int iy = -ny / 2; iy <= ny / 2; ++iy) {
             double s = (double)ix / nx * len;
-            double t = (double)iy / (ny/2) * sweep;
-            Vec2d pt = p0 + s*along + t*perp;
+            double t = (double)iy / (ny / 2) * sweep;
+            Vec2d pt = p0 + s * along + t * perp;
             std::pair<double, Vec2d> _q = sdf.queryWithGrad(pt);
-            if (_q.first < clearance) {   // in or near obstacle (including safety margin)
+            if (_q.first < clearance) {
                 box.x_min = std::min(box.x_min, pt.x());
                 box.x_max = std::max(box.x_max, pt.x());
                 box.y_min = std::min(box.y_min, pt.y());
@@ -117,9 +104,9 @@ static Vec2d computeApex(
     const ObstacleAABB& box, const Vec2d& p0, const Vec2d& p1, int side, double clearance) {
     Vec2d along = (p1 - p0);
     double len = along.norm();
-    if (len < 1e-6) return 0.5*(p0+p1);
-    along = along * (1.0/len);
-    Vec2d perp{-along[1], along[0]};   // left normal (unit vector)
+    if (len < 1e-6) return 0.5 * (p0 + p1);
+    along = along * (1.0 / len);
+    Vec2d perp{-along[1], along[0]}; // left normal (unit vector)
 
     // Longitudinal midpoint of obstacle box (world coords → project onto path axis)
     // The box stores world coordinates of sampled points, so we must project
@@ -134,8 +121,10 @@ static Vec2d computeApex(
         Vec2d c(corners_x[i], corners_y[i]);
         double lon = c.dot(along);
         double lat = c.dot(perp);
-        lon_min = std::min(lon_min, lon); lon_max = std::max(lon_max, lon);
-        lat_min = std::min(lat_min, lat); lat_max = std::max(lat_max, lat);
+        lon_min = std::min(lon_min, lon);
+        lon_max = std::max(lon_max, lon);
+        lat_min = std::min(lat_min, lat);
+        lat_max = std::max(lat_max, lat);
     }
 
     // Longitudinal midpoint of obstacle, clamped to [20%, 80%] of path
@@ -202,9 +191,9 @@ static Vec2d computeApex(
 //          fall back to gradient voting only.
 static int chooseSide(
     const SDFField& sdf, const ObstacleAABB& box, const Vec2d& p0, const Vec2d& p1, double clearance,
-    const std::vector<std::vector<Vec2d>>& sibling_polys, const Vec2d& t0_hint = Vec2d(0,0)) {
+    const std::vector<std::vector<Vec2d>>& sibling_polys, const Vec2d& t0_hint = Vec2d(0, 0)) {
     Vec2d along = (p1 - p0).normalized();
-    Vec2d perp{-along[1], along[0]};   // LEFT of path direction
+    Vec2d perp{-along[1], along[0]}; // LEFT of path direction
 
     // ── Side selection: RHT centre-priority with obstacle position awareness ──
     //
@@ -226,7 +215,7 @@ static int chooseSide(
         Vec2d junction_centre(0.0, 0.0);
         Vec2d mid_path = 0.5 * (p0 + p1);
         Vec2d to_centre = junction_centre - mid_path;
-        double centre_lat = to_centre.dot(perp);   // +: centre left, -: centre right
+        double centre_lat = to_centre.dot(perp); // +: centre left, -: centre right
 
         // Obstacle AABB centre
         double obs_cx = 0.5 * (box.x_min + box.x_max);
@@ -235,8 +224,8 @@ static int chooseSide(
         double obs_lat = (obs_centre_world - mid_path).dot(perp);
 
         const double LAT_THRESH = 0.5;
-        bool centre_clear  = std::abs(centre_lat) > LAT_THRESH;
-        bool obs_clear     = std::abs(obs_lat)    > LAT_THRESH;
+        bool centre_clear = std::abs(centre_lat) > LAT_THRESH;
+        bool obs_clear = std::abs(obs_lat) > LAT_THRESH;
 
         if (centre_clear && obs_clear) {
             // Both clearly on defined sides
@@ -268,7 +257,7 @@ static int chooseSide(
     double weighted_lat = 0.0;
     double total_weight = 0.0;
     constexpr double PROBE = 0.15;
-    constexpr double SAMPLE_THRESH = 3.0;   // probe within 3m of obstacle
+    constexpr double SAMPLE_THRESH = 3.0; // probe within 3m of obstacle
     constexpr int N = 30;
     for (int i = 1; i < N; ++i) {
         double t = (double)i / N;
@@ -278,11 +267,12 @@ static int chooseSide(
         if (d > SAMPLE_THRESH) continue;
         std::pair<double, Vec2d> _ql = sdf.queryWithGrad(pt + PROBE * perp);
         std::pair<double, Vec2d> _qm = sdf.queryWithGrad(pt - PROBE * perp);
-        double d_lp = _ql.first; double d_lm = _qm.first;
+        double d_lp = _ql.first;
+        double d_lm = _qm.first;
         double lat_grad = (d_lp - d_lm) / (2 * PROBE);
         double w = 1.0 / (d + 0.05);
         weighted_lat += w * lat_grad;
-        total_weight  += w;
+        total_weight += w;
     }
 
     // side = direction of MORE clearance (toward free space)
@@ -294,11 +284,11 @@ static int chooseSide(
     for (auto& poly : sibling_polys) {
         for (auto& pt : poly) {
             double lat = (pt - mid).dot(perp);
-            if (lat >  0.2) sib_left++;
+            if (lat > 0.2) sib_left++;
             if (lat < -0.2) sib_right++;
         }
     }
-    int occ_primary  = (primary_side > 0) ? sib_left : sib_right;
+    int occ_primary = (primary_side > 0) ? sib_left : sib_right;
     int occ_opposite = (primary_side > 0) ? sib_right : sib_left;
     if (occ_primary > occ_opposite + 5) primary_side = -primary_side;
 
@@ -318,8 +308,8 @@ static BezierCurve buildArch(
     if (apex_tan.norm() < 1e-8) apex_tan = leg0;
     apex_tan.normalize();
 
-    BezierSegment s0 = makeCubicG1(p0,    t0.normalized(), apex, apex_tan,  alpha);
-    BezierSegment s1 = makeCubicG1(apex,  apex_tan,        p1,   t1.normalized(), alpha);
+    BezierSegment s0 = makeCubicG1(p0, t0.normalized(), apex, apex_tan, alpha);
+    BezierSegment s1 = makeCubicG1(apex, apex_tan, p1, t1.normalized(), alpha);
 
     BezierCurve c;
     c.segs.push_back(s0);
@@ -359,8 +349,11 @@ static BezierCurve geometricBypass(
     bool arch_clear = true;
     for (auto& seg : arch.segs) {
         for (int i = 1; i < 20; ++i) {
-            std::pair<double, Vec2d> _qs = sdf.queryWithGrad(seg.evaluate((double)i/20));
-            if (_qs.first < clearance * 0.5) { arch_clear = false; break; }
+            std::pair<double, Vec2d> _qs = sdf.queryWithGrad(seg.evaluate((double)i / 20));
+            if (_qs.first < clearance * 0.5) {
+                arch_clear = false;
+                break;
+            }
         }
         if (!arch_clear) break;
     }
@@ -371,12 +364,15 @@ static BezierCurve geometricBypass(
         bool arch2_clear = true;
         for (auto& seg : arch2.segs) {
             for (int i = 1; i < 20; ++i) {
-                std::pair<double, Vec2d> _qs2 = sdf.queryWithGrad(seg.evaluate((double)i/20));
-                if (_qs2.first < clearance * 0.5) { arch2_clear = false; break; }
+                std::pair<double, Vec2d> _qs2 = sdf.queryWithGrad(seg.evaluate((double)i / 20));
+                if (_qs2.first < clearance * 0.5) {
+                    arch2_clear = false;
+                    break;
+                }
             }
             if (!arch2_clear) break;
         }
-        if (!arch2_clear) return {};  // signal Level-2 fallback
+        if (!arch2_clear) return {}; // signal Level-2 fallback
         arch = arch2;
     }
 
@@ -390,16 +386,17 @@ static BezierCurve geometricBypass(
         // 15% of arc length (where same-entry curves naturally overlap).
         double endpoint_skip_dist = std::max(0.05, arch_len * 0.15);
         for (auto& sp : sibling_polys) {
-            for (int ai = 0; ai+1 < (int)arch_pts.size(); ++ai) {
-                for (int si = 0; si+1 < (int)sp.size(); ++si) {
+            for (int ai = 0; ai + 1 < (int)arch_pts.size(); ++ai) {
+                for (int si = 0; si + 1 < (int)sp.size(); ++si) {
                     Vec2d isect;
                     if (!segmentsIntersect_internal(
-                            arch_pts[ai], arch_pts[ai+1],
-                            sp[si],       sp[si+1], &isect)) continue;
+                        arch_pts[ai], arch_pts[ai + 1],
+                        sp[si], sp[si + 1], &isect))
+                        continue;
                     // Skip intersections close to either endpoint of the arch
                     double de = std::min(
-                        (isect-arch_pts.front()).norm(),
-                        (isect-arch_pts.back()).norm());
+                        (isect - arch_pts.front()).norm(),
+                        (isect - arch_pts.back()).norm());
                     if (de < endpoint_skip_dist) continue;
                     // Genuine interior intersection → Level-2 fallback
                     return {};
@@ -425,10 +422,10 @@ static BezierCurve geometricInitLevel2(
     double len = along.norm();
     if (len < 1e-6) {
         BezierCurve c;
-        c.segs.push_back(makeCubicG1(p0,t0.normalized(),p1,t1.normalized(),0.4));
+        c.segs.push_back(makeCubicG1(p0, t0.normalized(), p1, t1.normalized(), 0.4));
         return c;
     }
-    along = along * (1.0/len);
+    along = along * (1.0 / len);
     Vec2d perp{-along[1], along[0]};
 
     // RHT centre-priority: prefer bypassing toward the junction centre (0,0),
@@ -461,33 +458,34 @@ static BezierCurve geometricInitLevel2(
                 side = (centre_lat > 0) ? 1.0 : -1.0;
             } else {
                 bool same_side = (centre_lat > 0) == (obs_lat > 0);
-                side = (!same_side) ?
-                       ((centre_lat > 0) ? 1.0 : -1.0) :   // outer obstacle → inner bypass
-                       ((centre_lat > 0) ? -1.0 : 1.0);     // inner obstacle → outer bypass
+                side = (!same_side)
+                           ? ((centre_lat > 0) ? 1.0 : -1.0) // outer obstacle → inner bypass
+                           : ((centre_lat > 0) ? -1.0 : 1.0); // inner obstacle → outer bypass
             }
         } else if (std::abs(centre_lat) > 0.5) {
-            side = (centre_lat > 0) ? 1.0 : -1.0;  // default inner bypass
+            side = (centre_lat > 0) ? 1.0 : -1.0; // default inner bypass
         } else {
             // Near-straight: pick side with more SDF clearance
-            double d_left=0, d_right=0;
+            double d_left = 0, d_right = 0;
             int n_probe = 10;
-            for (int i=1; i<=n_probe; ++i) {
-                double s = (double)i/(n_probe+1)*len;
-                Vec2d mid_pt = p0 + s*along;
-                std::pair<double, Vec2d> _ql2 = sdf.queryWithGrad(mid_pt + 1.5*perp);
-                std::pair<double, Vec2d> _qr2 = sdf.queryWithGrad(mid_pt - 1.5*perp);
-                d_left += _ql2.first; d_right += _qr2.first;
+            for (int i = 1; i <= n_probe; ++i) {
+                double s = (double)i / (n_probe + 1) * len;
+                Vec2d mid_pt = p0 + s * along;
+                std::pair<double, Vec2d> _ql2 = sdf.queryWithGrad(mid_pt + 1.5 * perp);
+                std::pair<double, Vec2d> _qr2 = sdf.queryWithGrad(mid_pt - 1.5 * perp);
+                d_left += _ql2.first;
+                d_right += _qr2.first;
             }
             side = (d_left >= d_right) ? 1.0 : -1.0;
         }
     }
     // Safety check: if preferred side is inside an obstacle, flip to other side.
     {
-        Vec2d mid_pt = p0 + 0.5*(p1-p0);
+        Vec2d mid_pt = p0 + 0.5 * (p1 - p0);
         std::pair<double, Vec2d> _qc = sdf.queryWithGrad(mid_pt + side * 1.5 * perp);
         std::pair<double, Vec2d> _qo = sdf.queryWithGrad(mid_pt - side * 1.5 * perp);
         if (_qc.first < 0.0 && _qo.first > _qc.first) {
-            side = -side;  // preferred side is inside obstacle, flip
+            side = -side; // preferred side is inside obstacle, flip
         }
     }
 
@@ -495,27 +493,27 @@ static BezierCurve geometricInitLevel2(
     //   apex at 50% longitudinal, lateral offset = obstacle_radius + clearance
     //   We estimate obstacle_radius from min SDF along direct line
     double min_d = 1e18;
-    for (int i=1; i<20; ++i) {
-        double t=(double)i/20;
-        std::pair<double, Vec2d> _qd = sdf.queryWithGrad((1-t)*p0+t*p1);
+    for (int i = 1; i < 20; ++i) {
+        double t = (double)i / 20;
+        std::pair<double, Vec2d> _qd = sdf.queryWithGrad((1 - t) * p0 + t * p1);
         min_d = std::min(min_d, _qd.first);
     }
-    double lateral_needed = std::max(1.0, -min_d + 1.5);  // how far to bypass
+    double lateral_needed = std::max(1.0, -min_d + 1.5); // how far to bypass
 
-    Vec2d apex = p0 + 0.5*(p1-p0) + side*lateral_needed*perp;
+    Vec2d apex = p0 + 0.5 * (p1 - p0) + side * lateral_needed * perp;
 
     // Step 3: build 4-segment arch through: p0 → q1 → apex → q2 → p1
     //   q1 = 25% along, lifted half-way to apex
     //   q2 = 75% along, lifted half-way to apex
-    Vec2d q1 = p0 + 0.25*(p1-p0) + side*(lateral_needed*0.6)*perp;
-    Vec2d q2 = p0 + 0.75*(p1-p0) + side*(lateral_needed*0.6)*perp;
+    Vec2d q1 = p0 + 0.25 * (p1 - p0) + side * (lateral_needed * 0.6) * perp;
+    Vec2d q2 = p0 + 0.75 * (p1 - p0) + side * (lateral_needed * 0.6) * perp;
 
     // Tangents: Catmull-Rom from waypoints
-    std::vector<Vec2d> pts  = {p0, q1, apex, q2, p1};
+    std::vector<Vec2d> pts = {p0, q1, apex, q2, p1};
     std::vector<Vec2d> tans = {t0.normalized(), {}, {}, {}, t1.normalized()};
-    for (int i=1; i<=3; ++i) {
-        Vec2d d = 0.5*(pts[i+1]-pts[i-1]);
-        tans[i] = d.norm()>1e-10 ? d.normalized() : (pts[i+1]-pts[i]).normalized();
+    for (int i = 1; i <= 3; ++i) {
+        Vec2d d = 0.5 * (pts[i + 1] - pts[i - 1]);
+        tans[i] = d.norm() > 1e-10 ? d.normalized() : (pts[i + 1] - pts[i]).normalized();
         // Clamp against net direction to avoid loops
         tans[i] = clampTangent(tans[i], along, MAX_TAN_DEV);
     }
@@ -542,7 +540,7 @@ BezierCurve buildInitialCurve(
     // from obstacles to maintain safe lateral distance, but the initial curve
     // shape should be the geometrically natural one unless it literally crosses
     // an obstacle.
-    constexpr double INIT_CLEARANCE = 0.0;   // only bypass on actual penetration
+    constexpr double INIT_CLEARANCE = 0.0; // only bypass on actual penetration
 
     // ── Fast path: check if a direct Bezier arc is clear ────────────────────
     // Check straight line first (cheap), then verify the actual Bezier arc.
@@ -550,8 +548,11 @@ BezierCurve buildInitialCurve(
         BezierSegment trial = makeCubicG1(p0, t0.normalized(), p1, t1.normalized(), 0.4);
         bool bezier_clear = true;
         for (int i = 1; i < 20; ++i) {
-            std::pair<double, Vec2d> _qt = sdf.queryWithGrad(trial.evaluate((double)i/20));
-            if (_qt.first < INIT_CLEARANCE) { bezier_clear = false; break; }
+            std::pair<double, Vec2d> _qt = sdf.queryWithGrad(trial.evaluate((double)i / 20));
+            if (_qt.first < INIT_CLEARANCE) {
+                bezier_clear = false;
+                break;
+            }
         }
         if (bezier_clear) {
             BezierCurve c;
@@ -595,7 +596,7 @@ BezierCurve buildTwoSegmentUTurn(
     Vec2d T1 = t1.normalized();
 
     // Lateral distance between p0 and p1 (perpendicular to entry direction)
-    Vec2d perp_left{-T0[1], T0[0]};   // left perpendicular of entry direction
+    Vec2d perp_left{-T0[1], T0[0]}; // left perpendicular of entry direction
 
     // Determine which side p1 is on relative to p0's entry direction.
     // For a standard left U-turn, p1 is to the LEFT of t0.
@@ -605,7 +606,7 @@ BezierCurve buildTwoSegmentUTurn(
     // The radius is at least half the lateral distance, but also at least
     // a comfortable minimum (related to typical lane width and turning radius).
     double lat_dist = std::abs(lateral_offset);
-    double forward_dist = (p1 - p0).dot(T0);  // how far apart along entry direction
+    double forward_dist = (p1 - p0).dot(T0); // how far apart along entry direction
 
     // Compute a suitable apex forward extension distance.
     // For a semicircular U-turn the apex should be at distance R from both
@@ -613,15 +614,15 @@ BezierCurve buildTwoSegmentUTurn(
     // The forward extension is: sqrt(R² - (lat_dist/2)²) for a circle,
     // but we use a simpler heuristic: go forward enough for a smooth arc.
     double min_radius = std::max(4.0, lat_dist * 0.8);
-    double apex_forward = std::max(min_radius,
-        std::max(lat_dist * 1.2, std::abs(forward_dist) + min_radius * 0.6));
+    double apex_forward = std::max(
+        min_radius, std::max(lat_dist * 1.2, std::abs(forward_dist) + min_radius * 0.6));
 
     // Apex position: midpoint of p0 and p1, extended forward along entry direction
     Vec2d base_mid = 0.5 * (p0 + p1);
     // The "forward" direction for apex placement is the average of t0 and -t1
     // (since t1 points backwards for a U-turn, -t1 points forward from p1's perspective)
-    Vec2d forward_dir = (T0 - T1);  // sum of forward-pointing directions
-    if (forward_dir.norm() < 1e-8) forward_dir = T0;  // fallback
+    Vec2d forward_dir = (T0 - T1); // sum of forward-pointing directions
+    if (forward_dir.norm() < 1e-8) forward_dir = T0; // fallback
     forward_dir.normalize();
 
     Vec2d apex = base_mid + forward_dir * apex_forward;
@@ -643,7 +644,7 @@ BezierCurve buildTwoSegmentUTurn(
     // Apex tangent: lateral direction at the top of the U-turn arc.
     // This should be perpendicular to the forward direction, pointing from
     // p0-side towards p1-side to maintain consistent arc orientation.
-    Vec2d apex_perp{-forward_dir[1], forward_dir[0]};  // left of forward
+    Vec2d apex_perp{-forward_dir[1], forward_dir[0]}; // left of forward
     // Determine correct lateral sign: apex tangent should point from the
     // p0 side of the arc towards the p1 side
     double sign = (p1 - p0).dot(apex_perp);
@@ -670,6 +671,7 @@ BezierCurve buildTwoSegmentUTurn(
 std::vector<Vec2d> sdfMaxClearancePath(
     const SDFField& sdf, const Polygon2d& fence, const Vec2d& start, const Vec2d& goal, double /*alpha*/) {
     // Simplified: just return start→goal; buildInitialCurve no longer uses this.
-    (void)sdf; (void)fence;
+    (void)sdf;
+    (void)fence;
     return {start, goal};
 }

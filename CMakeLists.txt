@@ -55,7 +55,11 @@ endif()
 
 
 add_subdirectory(src)
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
-    add_subdirectory(tests)
+option(INTERSECTION_BUILD_TESTS "Build project tests" ON)
+if(INTERSECTION_BUILD_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+        add_subdirectory(tests)
+    endif()
+else()
+    message(STATUS "Tests disabled by INTERSECTION_BUILD_TESTS=OFF")
 endif()

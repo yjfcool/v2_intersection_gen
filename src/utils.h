@@ -46,8 +46,10 @@ inline std::pair<double, double> pointToSegment(
 
 // 点到折线的最短距离
 inline double pointToPolyline(const Vec2d& p, const std::vector<Vec2d>& poly) {
-    if (poly.empty()) return std::numeric_limits<double>::max();
-    if (poly.size() == 1) return dist(p, poly[0]);
+    if (poly.empty())
+        return std::numeric_limits<double>::max();
+    if (poly.size() == 1)
+        return dist(p, poly[0]);
     double minD = std::numeric_limits<double>::max();
     for (size_t i = 0; i + 1 < poly.size(); ++i) {
         std::pair<double, double> _seg = pointToSegment(p, poly[i], poly[i + 1]);
@@ -62,8 +64,10 @@ inline bool segmentsIntersectStrict(
     const Vec2d& a, const Vec2d& b, const Vec2d& c, const Vec2d& d) {
     // 使用叉积方向判断
     auto sign = [](double v) -> int {
-        if (v > EPS) return 1;
-        if (v < -EPS) return -1;
+        if (v > EPS)
+            return 1;
+        if (v < -EPS)
+            return -1;
         return 0;
     };
     Vec2d ab = b - a, ac = c - a, ad = d - a;
@@ -120,7 +124,8 @@ inline bool polylinesIntersectExcludeEndpoints(
                 bool aEnd = (dist(A.back(), A[i]) < endPtTol || dist(A.back(), A[i + 1]) < endPtTol);
                 bool bStart = (dist(B.front(), B[j]) < endPtTol || dist(B.front(), B[j + 1]) < endPtTol);
                 bool bEnd = (dist(B.back(), B[j]) < endPtTol || dist(B.back(), B[j + 1]) < endPtTol);
-                (void)ptsA; (void)ptsB;
+                (void)ptsA;
+                (void)ptsB;
                 if ((aStart || aEnd) && (bStart || bEnd)) {
                     // 检查端点是否重合
                     if (dist(A.front(), B.front()) < endPtTol || dist(A.front(), B.back()) < endPtTol
@@ -141,7 +146,8 @@ inline bool polylinesIntersectExcludeEndpoints(
 
 // 折线按arc-length重采样，间距spacing
 inline std::vector<Vec2d> resampleBySpacing(const std::vector<Vec2d>& src, double spacing) {
-    if (src.size() < 2 || spacing < EPS) return src;
+    if (src.size() < 2 || spacing < EPS)
+        return src;
     std::vector<Vec2d> out;
     out.push_back(src.front());
     double acc = 0;
@@ -152,7 +158,8 @@ inline std::vector<Vec2d> resampleBySpacing(const std::vector<Vec2d>& src, doubl
             double dt = spacing - (acc - t * 0);
             // 实际上：累积到下一个采样点
             double need = spacing - acc;
-            if (need < 0) need += spacing;
+            if (need < 0)
+                need += spacing;
             // 简化：逐点累积
             (void)dt;
             break;
@@ -181,7 +188,8 @@ inline std::vector<Vec2d> resampleBySpacing(const std::vector<Vec2d>& src, doubl
 
 // 点是否在多边形内（射线法）
 inline bool pointInPolygon(const Vec2d& pt, const std::vector<Vec2d>& poly) {
-    if (poly.size() < 3) return false;
+    if (poly.size() < 3)
+        return false;
     int cnt = 0;
     size_t n = poly.size();
     for (size_t i = 0, j = n - 1; i < n; j = i++) {
@@ -212,13 +220,15 @@ inline double polygonArea(const std::vector<Vec2d>& p) { return std::abs(polygon
 // Entry line: geometry runs outside→intersection; last point is at intersection edge.
 // Exit  line: geometry runs intersection→outside; first point is at intersection edge.
 inline Vec2d getConnPoint(const std::vector<Vec2d>& points, bool is_entryline) {
-    if (points.size() < 1) return Vec2d(0, 0);
+    if (points.size() < 1)
+        return Vec2d(0, 0);
     return is_entryline ? points.back() : points.front();
 }
 
 inline Vec2d getConnTangent(const std::vector<Vec2d>& points, bool is_entryline) {
     int n = points.size();
-    if (n < 2) return Vec2d(1, 0);
+    if (n < 2)
+        return Vec2d(1, 0);
     Vec2d d = is_entryline ? points[n - 1] - points[n - 2] : points[1] - points[0];
     return d.norm() > 1e-10 ? d.normalized() : Vec2d(1, 0);
 }

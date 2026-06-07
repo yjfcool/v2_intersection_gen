@@ -9,14 +9,17 @@
 using Vec2d = Eigen::Vector2d;
 using VecXd = Eigen::VectorXd;
 
-inline std::vector<std::array<double,2>> toArray(const std::vector<Vec2d>& pts) {
-    std::vector<std::array<double,2>> arrpts;
-    for (auto p : pts) arrpts.emplace_back(std::array<double,2>{p[0], p[1]});
+inline std::vector<std::array<double, 2>> toArray(const std::vector<Vec2d>& pts) {
+    std::vector<std::array<double, 2>> arrpts;
+    for (auto p : pts)
+        arrpts.emplace_back(std::array<double, 2>{p[0], p[1]});
     return arrpts;
 }
-inline std::vector<Vec2d> toArray(const std::vector<std::array<double,2>>& arrpts) {
+
+inline std::vector<Vec2d> toArray(const std::vector<std::array<double, 2>>& arrpts) {
     std::vector<Vec2d> pts;
-    for (auto p : arrpts) pts.emplace_back(Vec2d{p[0], p[1]});
+    for (auto p : arrpts)
+        pts.emplace_back(Vec2d{p[0], p[1]});
     return pts;
 }
 
@@ -119,6 +122,7 @@ using InterId = std::string;
 using AttrMap = std::map<std::string, std::string>;
 
 enum class GroupRole { Entry, Exit };
+
 enum class ConnTurnType { Unknown = 0, TurnLeft = 1, UTurnLeft = 2, Straight = 3, TurnRight = 4, UTurnRight = 5 };
 
 struct LaneEdge {
@@ -173,6 +177,7 @@ struct Obstacle {
 
 struct Boundary {
     enum class Type { RoadEdge, MedianStrip, GreenBelt, Other };
+
     std::string id;
     Type type = Type::RoadEdge;
     LineString2d geometry;
@@ -273,7 +278,7 @@ struct IntersectionInput {
 // ── AdaptiveRefineResult forward-declared here ───────────────
 struct SDFField; // forward
 
-struct  LBFGSConfig {
+struct LBFGSConfig {
     int max_iter = 200; // reduced: good init+analytic grad converges faster
     int history_size = 10;
     int max_ls_iter = 20;

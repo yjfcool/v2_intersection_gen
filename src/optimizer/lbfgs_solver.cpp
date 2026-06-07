@@ -1,11 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  L-BFGS with strong-Wolfe line search
-//
-//  Key optimisation vs. original:
-//  1. lineSearch reuses the last fn evaluation — no redundant call in solve().
-//  2. Zoom phase uses cubic interpolation, not bisection → fewer ls steps.
-//  3. Non-descent direction fallback avoids wasted gradient-descent step.
-//  4. fn_evals counter for profiling.
 // ─────────────────────────────────────────────────────────────────────────────
 #include "lbfgs_solver.h"
 #include <cmath>
@@ -24,10 +18,6 @@ static double cubicMinimiser(double a, double fa, double ga, double b, double fb
 }
 
 // ── Strong-Wolfe line search ──────────────────────────────────────────────────
-// Implements Nocedal & Wright Algorithm 3.6 (zoom).
-// CRUCIAL FIX vs. original: we always leave the last accepted (xn,fn_val,gn)
-// populated from the final fn() call inside the search — solve() must NOT
-// call fn() again with the returned point.
 double LBFGSSolver::lineSearch(
     CostFn& fn, const VecXd& x, const VecXd& dir,
     double f0, const VecXd& g0, VecXd& xn, double& fn_val, VecXd& gn, int& evals) {
@@ -194,8 +184,6 @@ SolveResult LBFGSSolver::solve(CostFn fn, const VecXd& x0) {
         VecXd dir = -r;
 
         // ── Line search ───────────────────────────────────────────────────
-        // FIX: lineSearch stores accepted (xn, fn_val, gn) internally.
-        // We do NOT call fn(xn, gn) again after this returns.
         VecXd xn(n), gn(n);
         double fn_val = f;
         double alpha = lineSearch(fn, x, dir, f, g, xn, fn_val, gn, evals);

@@ -1,8 +1,7 @@
 #include "cluster_order.h"
 #include "optimizer/sdf_field.h"
-#include <algorithm>
-
 #include "curve/curve_utils.h"
+#include <algorithm>
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Turn-type geometry order for non-crossing constraint within a cluster.
@@ -41,12 +40,12 @@
 // Sort order: by ascending priority (left first → right last).
 static int turnPriority(ConnTurnType t) {
     switch (t) {
-    case ConnTurnType::UTurnLeft:  return -2;
-    case ConnTurnType::TurnLeft:   return -1;
-    case ConnTurnType::Straight:   return  0;
-    case ConnTurnType::TurnRight:  return +1;
+    case ConnTurnType::UTurnLeft: return -2;
+    case ConnTurnType::TurnLeft: return -1;
+    case ConnTurnType::Straight: return 0;
+    case ConnTurnType::TurnRight: return +1;
     case ConnTurnType::UTurnRight: return +2;
-    default:                        return  0;
+    default: return 0;
     }
 }
 
@@ -58,8 +57,8 @@ static const Connectivity* findConn(const std::vector<Connectivity>& conns, cons
 }
 
 // Check if a pair (a, b) or (b, a) already exists in the list.
-bool ClusterOrderSolver::hasPair(const std::vector<CurvePair>& pairs,
-                                 const ConnId& a, const ConnId& b) {
+bool ClusterOrderSolver::hasPair(
+    const std::vector<CurvePair>& pairs, const ConnId& a, const ConnId& b) {
     for (auto& p : pairs)
         if ((p.id_a == a && p.id_b == b) || (p.id_a == b && p.id_b == a))
             return true;
@@ -72,8 +71,7 @@ bool ClusterOrderSolver::hasPair(const std::vector<CurvePair>& pairs,
 // topological conflicts via checkAndMarkA2 / infeasibility detection.
 void ClusterOrderSolver::addPairsFromCluster(
     const std::vector<ConnId>& cids,
-    const std::vector<Connectivity>& conns)
-{
+    const std::vector<Connectivity>& conns) {
     for (int i = 0; i < (int)cids.size(); ++i) {
         for (int j = i + 1; j < (int)cids.size(); ++j) {
             if (hasPair(pairs_, cids[i], cids[j]))
@@ -88,9 +86,9 @@ void ClusterOrderSolver::addPairsFromCluster(
     }
 }
 
-void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
-                               const std::vector<Lane>& lanes,
-                               const std::vector<LaneGroup>& laneGroups) {
+void ClusterOrderSolver::build(
+    const std::vector<Connectivity>& conns,
+    const std::vector<Lane>& lanes, const std::vector<LaneGroup>& laneGroups) {
     entry_order_.clear();
     exit_order_.clear();
     pairs_.clear();
@@ -98,7 +96,7 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // ── Step 1: Group connections by entry lane and exit lane ────────────────
     for (auto& c : conns) {
         entry_order_[c.entry_lane_id].push_back(c.id);
-        exit_order_ [c.exit_lane_id ].push_back(c.id);
+        exit_order_[c.exit_lane_id].push_back(c.id);
     }
 
     // ── Step 2: Sort each entry cluster by turn-type priority ────────────────
@@ -108,7 +106,9 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // we sort by exit lane identity to get a deterministic consistent ordering.
     // The generator will further refine same-type ordering geometrically.
     for (auto& kv : entry_order_) {
-        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
+        auto& lid = kv.first;
+        (void)lid;
+        auto& cids = kv.second;
         std::stable_sort(cids.begin(), cids.end(), [&](const ConnId& a, const ConnId& b) {
             auto* ca = findConn(conns, a);
             auto* cb = findConn(conns, b);
@@ -128,7 +128,9 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // curves arriving from different directions at the same exit.
     // Use the same priority scheme — let the optimizer handle ordering.
     for (auto& kv : exit_order_) {
-        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
+        auto& lid = kv.first;
+        (void)lid;
+        auto& cids = kv.second;
         std::stable_sort(cids.begin(), cids.end(), [&](const ConnId& a, const ConnId& b) {
             auto* ca = findConn(conns, a);
             auto* cb = findConn(conns, b);
@@ -144,7 +146,9 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
 
     // ── Step 4: Build constraint pairs from entry clusters ───────────────────
     for (auto& kv : entry_order_) {
-        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
+        auto& lid = kv.first;
+        (void)lid;
+        auto& cids = kv.second;
         if (cids.size() > 1)
             addPairsFromCluster(cids, conns);
     }
@@ -153,14 +157,16 @@ void ClusterOrderSolver::build(const std::vector<Connectivity>& conns,
     // This is the KEY FIX: curves sharing the same exit lane must not cross
     // (e.g. conn32/right-turn and conn18/left-turn sharing exit 43242048).
     for (auto& kv : exit_order_) {
-        auto& lid = kv.first; (void)lid; auto& cids = kv.second;
+        auto& lid = kv.first;
+        (void)lid;
+        auto& cids = kv.second;
         if (cids.size() > 1)
             addPairsFromCluster(cids, conns);
     }
 }
 
 void ClusterOrderSolver::markObstacleExempt(CurvePair& pair, const Vec2d& pt, const SDFField& sdf, double r) {
-    std::pair<double,Vec2d> _q = sdf.queryWithGrad(pt);
+    std::pair<double, Vec2d> _q = sdf.queryWithGrad(pt);
     if (_q.first < r) {
         pair.exempt = CrossExemption::ObstacleCross;
         pair.exempt_zone_radius = r;

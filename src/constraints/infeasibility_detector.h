@@ -1,5 +1,5 @@
 /*
- * 阶段3：InfeasibilityDetector (无解预检测 )
+ * InfeasibilityDetector (无解预检测)
  *  - BFS 可达性（C 类：拓扑死锁）
  *  - 通道宽度检测（A 类：过窄）
  *  - 围栏-障碍夹断检测（B 类）
@@ -23,6 +23,7 @@ struct FenceRelaxResult {
     bool success = false;
     Polygon2d relaxed_fence;
     double max_expansion = 0;
+
     FenceRelaxResult(bool success, const Polygon2d& relaxed_fence, double max_expansion)
         : success(success), relaxed_fence(relaxed_fence) {}
 };

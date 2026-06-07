@@ -14,8 +14,6 @@ add_library(intersection_gen_lib STATIC
     constraints/cluster_order.cpp
 
         generator/connectivity_generator.cpp
-        generator/lane_edge_generator.cpp
-        generator/fine_area_generator.cpp
         generator/polygon_builder.h
         generator/edge_line_generator.h
 )

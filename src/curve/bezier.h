@@ -18,7 +18,7 @@ VecXd curveToParams(const BezierCurve& c);
 
 BezierCurve curveFromParams(const VecXd& params, const BezierCurve& proto);
 
-// Level-2: all control points (incl. join pts) are optimisation variables
+// all control points (incl. join pts) are optimisation variables
 VecXd curveToParamsFull(const BezierCurve& c);
 
 BezierCurve curveFromParamsFull(const VecXd& params, const BezierCurve& proto);

@@ -16,7 +16,7 @@ Polygon2d SDFField::bufferPolygon(const Polygon2d& poly, double r) {
 Polygon2d SDFField::unionPolygons(const std::vector<Polygon2d>& polys) {
     if (polys.empty()) return {};
     if (polys.size() == 1) return polys[0];
-    std::vector<std::vector<std::array<double,2>>> subs;
+    std::vector<std::vector<std::array<double, 2>>> subs;
     for (auto& p : polys) if (!p.outer.empty()) subs.emplace_back(toArray(p.outer));
     auto sol = ClipperUtil::UnionPaths(subs, ClipperLib::pftNonZero);
     if (sol.empty()) return polys[0];
@@ -60,16 +60,7 @@ void SDFField::build(const BoundingBox2d& roi, const std::vector<Obstacle>& obs,
         if (o.geometry.outer.empty()) continue;
         buffered.push_back(buf > 0 ? bufferPolygon(o.geometry, buf) : o.geometry);
     }
-    // FIX: do NOT force-union all buffered polygons into one.
-    // When obstacles are non-overlapping, Clipper2's Union() returns multiple
-    // separate paths and the old code only kept sol[0], silently discarding
-    // all other obstacles from the SDF. Instead, keep every buffered polygon
-    // independently; rebuildGrid / distToPolygons / insideAny already iterate
-    // over all polygons in the list correctly.
     if (buffered.size() > 1) {
-        // Attempt union only to merge OVERLAPPING obstacles (reduces polygon count).
-        // For each connected component returned by Union, keep it as a separate
-        // Polygon2d so non-overlapping obstacles are never discarded.
         std::vector<std::vector<std::array<double,2>>> subs;
         for (auto& p : buffered) if (!p.outer.empty()) subs.push_back(toArray(p.outer));
         auto sol = ClipperUtil::UnionPaths(subs, ClipperLib::pftNonZero);
@@ -119,8 +110,12 @@ void SDFField::updateRegion(const BoundingBox2d& dirty, const std::vector<Obstac
     std::vector<Polygon2d> lp;
     for (auto& o : obs)
         lp.push_back(buf > 0 ? bufferPolygon(o.geometry, buf) : o.geometry);
-    std::pair<int,int> _mc = worldToCell(dirty.min_pt); int rm = _mc.first; int cm = _mc.second;
-    std::pair<int,int> _xc = worldToCell(dirty.max_pt); int rx = _xc.first; int cx = _xc.second;
+    std::pair<int, int> _mc = worldToCell(dirty.min_pt);
+    int rm = _mc.first;
+    int cm = _mc.second;
+    std::pair<int, int> _xc = worldToCell(dirty.max_pt);
+    int rx = _xc.first;
+    int cx = _xc.second;
     rm = std::max(0, rm - 1);
     cm = std::max(0, cm - 1);
     rx = std::min(rows_ - 1, rx + 1);
@@ -176,8 +171,9 @@ double SDFField::obstaclePenalty(const Vec2d& pt, double cl) const {
 }
 
 Vec2d SDFField::obstaclePenaltyGrad(const Vec2d& pt, double cl) const {
-    std::pair<double,Vec2d> _q3 = queryWithGrad(pt);
-    double d = _q3.first; Vec2d gd = _q3.second;
+    std::pair<double, Vec2d> _q3 = queryWithGrad(pt);
+    double d = _q3.first;
+    Vec2d gd = _q3.second;
     double s = d - cl;
     return s >= 0 ? Vec2d(0, 0) : 2.0 * s * gd;
 }
