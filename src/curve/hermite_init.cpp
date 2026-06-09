@@ -1,5 +1,6 @@
 #include "hermite_init.h"
 #include "optimizer/sdf_field.h"
+#include "curve/curve_utils.h"
 #include "utils.h"
 #include <cmath>
 #include <algorithm>

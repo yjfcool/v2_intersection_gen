@@ -8,6 +8,7 @@ node_modules
 .settings/
 .vscode/
 .claude/
+build/
 cmake-build-debug/
 depends/
 depends.bak/

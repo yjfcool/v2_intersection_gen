@@ -5,11 +5,13 @@
 #include "utils.h"
 #include "optimizer/sdf_field.h"
 #include "constraints/infeasibility_detector.h"
+#include "utils/quadtree.h"
 #include <chrono>
 #include <algorithm>
 #include <map>
 #include <cmath>
 #include <iostream>
+#include <memory>
 
 // ── IntersectionInput helpers ─────────────────────────────────────────────────
 const bool IntersectionInput::IsEntryLane(const LaneId& id) const {
@@ -102,8 +104,121 @@ void GlobalCoordinator::addSoftObstacles(SDFField&,
 
 // ── ConnectivityGenerator ─────────────────────────────────────────────────────
 
-ConnectivityGenerator::ConnectivityGenerator(const LBFGSConfig& cfg) : solver_(cfg) {}
+void ConnectivityGenerator::initializePersistentQuadTree(const IntersectionInput& input) {
+    if (!quad_tree_) {
+        // Determine overall bounds from the intersection area
+        BoundingBox2d bounds;
+        if (!input.area.geometry.outer.empty()) {
+            bounds = input.area.geometry.bbox();
+        } else {
+            // If no area defined, calculate from lane geometries
+            for (const auto& lane : input.lanes) {
+                for (const auto& pt : lane.geometry.points) {
+                    bounds.expand(pt);
+                }
+            }
+            // Add buffer
+            bounds.min_pt -= Vec2d(50.0, 50.0);
+            bounds.max_pt += Vec2d(50.0, 50.0);
+        }
 
+        // Initialize the persistent quadtree with larger capacity
+        quad_tree_ = make_unique_cpp11<QuadTree>(bounds, 16, 8); // increased capacity and depth for better performance
+    }
+}
+
+void ConnectivityGenerator::addCurveToPersistentQuadTree(const ConnId& id, const BezierCurve& curve) {
+    if (quad_tree_) {
+        quad_tree_->insert(curve, id);
+    }
+}
+
+void ConnectivityGenerator::clearPersistentSpatialIndex() {
+    quad_tree_.reset();
+}
+
+ConnectivityGenerator::ConnectivityGenerator(const LBFGSConfig& cfg) : solver_(cfg), quad_tree_(nullptr) {}
+
+std::vector<SiblingCurve> ConnectivityGenerator::buildSiblingsOptimized(
+    const ConnId& id, const std::unordered_map<ConnId, BezierCurve>& done,
+    const ClusterOrderSolver& cs, const IntersectionInput& input) const {
+
+    std::vector<SiblingCurve> sibs;
+
+    // Find the current connection to get its entry lane for spatial query
+    const Connectivity* current_conn = nullptr;
+    for (const auto& conn : input.connectivities) {
+        if (conn.id == id) {
+            current_conn = &conn;
+            break;
+        }
+    }
+
+    if (!current_conn || done.empty()) {
+        return buildSiblings(id, done, cs); // fallback to original if needed
+    }
+
+    // Determine query bounds based on current connection
+    BoundingBox2d query_bounds = getCurveBoundsForQuery(*current_conn, input);
+
+    // Use the persistent quadtree instance from the class if available
+    if (this->quad_tree_) {
+        auto nearby_curves = this->quad_tree_->queryRange(query_bounds);
+
+        for (const auto& kv : nearby_curves) {
+            auto& curve = kv.first;
+            auto& conn_id = kv.second;
+
+            // Skip the curve with the same ID
+            if (conn_id == id) continue;
+
+            SiblingCurve s;
+            s.curve = curve;
+
+            auto ex = cs.exemptionOf(id, conn_id);
+            if (ex == CrossExemption::None) {
+                s.exempt_a1 = true; // cross-traffic, different entry & exit → structural cross
+            } else {
+                s.exempt_a1 = (ex == CrossExemption::StructuralCross);
+            }
+
+            s.exempt_a2_radius = (ex == CrossExemption::ObstacleCross) ? 1.5 : 0.0;
+            sibs.push_back(std::move(s));
+        }
+    } else {
+        // Fallback to temporary quadtree construction if persistent one is not available
+        QuadTree temp_quadtree(query_bounds, 8, 6); // capacity=8, max depth=6
+
+        for (const auto& kv : done) {
+            auto& conn_id = kv.first;
+            auto& curve = kv.second;
+            if (conn_id == id) continue;
+            temp_quadtree.insert(curve, conn_id);
+        }
+
+        // Query for potentially overlapping curves
+        auto nearby_curves = temp_quadtree.queryRange(query_bounds);
+
+        for (const auto& kv : nearby_curves) {
+            auto& curve = kv.first;
+            auto& conn_id = kv.second;
+            SiblingCurve s;
+            s.curve = curve;
+
+            auto ex = cs.exemptionOf(id, conn_id);
+            if (ex == CrossExemption::None) {
+                s.exempt_a1 = true; // cross-traffic, different entry & exit → structural cross
+            } else {
+                s.exempt_a1 = (ex == CrossExemption::StructuralCross);
+            }
+
+            s.exempt_a2_radius = (ex == CrossExemption::ObstacleCross) ? 1.5 : 0.0;
+            sibs.push_back(std::move(s));
+        }
+    }
+
+    return sibs;
+}
 
 std::vector<SiblingCurve> ConnectivityGenerator::buildSiblings(
     const ConnId& id, const std::unordered_map<ConnId, BezierCurve>& done, const ClusterOrderSolver& cs) const {
@@ -124,8 +239,7 @@ std::vector<SiblingCurve> ConnectivityGenerator::buildSiblings(
         // cross-traffic from different road arms → exempt from cluster penalty.
         if (ex == CrossExemption::None) {
             s.exempt_a1 = true; // cross-traffic, different entry & exit → structural cross
-        }
-        else {
+        } else {
             s.exempt_a1 = (ex == CrossExemption::StructuralCross);
         }
 
@@ -133,6 +247,26 @@ std::vector<SiblingCurve> ConnectivityGenerator::buildSiblings(
         sibs.push_back(std::move(s));
     }
     return sibs;
+}
+
+BoundingBox2d ConnectivityGenerator::getCurveBoundsForQuery(const Connectivity& conn, const IntersectionInput& input) const {
+    // Get entry and exit points for the connection
+    auto _entry = input.entryPtDir(conn.entry_lane_id);
+    Vec2d p0 = _entry.first;
+    Vec2d t0 = _entry.second;
+    auto _exit = input.exitPtDir(conn.exit_lane_id);
+    Vec2d p1 = _exit.first;
+
+    // Create a bounding box centered around the connection with a reasonable buffer
+    BoundingBox2d bounds;
+    bounds.min_pt = Vec2d(std::min(p0.x(), p1.x()), std::min(p0.y(), p1.y()));
+    bounds.max_pt = Vec2d(std::max(p0.x(), p1.x()), std::max(p0.y(), p1.y()));
+
+    // Add buffer to account for curve expansion
+    bounds.min_pt -= Vec2d(10.0, 10.0);
+    bounds.max_pt += Vec2d(10.0, 10.0);
+
+    return bounds;
 }
 
 
@@ -185,7 +319,8 @@ BezierCurve ConnectivityGenerator::postProcess(
 
         double max_k = cur.maxCurvature(20);
         double move_st = std::min(0.15, std::max(0.02, max_k * 0.3));
-        auto sm = elasticBandSmooth(pts, sdf, fence, kmax, move_st, 80, 0.1);
+        // Using adaptive version of elastic band smoothing
+        auto sm = elasticBandSmoothAdaptive(pts, sdf, fence, kmax, move_st, 80, 0.1);
         sm.front() = ep0;
         sm.back() = ep1;
 
@@ -268,9 +403,8 @@ ConnectivityCurve ConnectivityGenerator::generateOne(
     cost.end_tan_dir = t1.norm() > 1e-8 ? t1.normalized() : Vec2d(1, 0);
     cost.full_param_mode = (initial.numSegments() > 1);
 
-    BezierCurve opt = optimiseCurve(cost, solver_, initial, /*outer_iters=*/4);
+    BezierCurve opt = optimiseCurveWithEarlyStopping(cost, solver_, initial, /*outer_iters=*/4);
 
-    bool is_uturn = (conn.turn_type == ConnTurnType::UTurnLeft || conn.turn_type == ConnTurnType::UTurnRight);
     bool skip_band = true; // always skip: preserve G1, rely on optimizer
     BezierCurve final_c = postProcess(opt, sdf, input.area.geometry, 0.25, t0, t1, skip_band, &p0, &p1);
     cc.curve = std::make_shared<BezierCurve>(final_c);
@@ -287,8 +421,10 @@ std::vector<ConnectivityCurve> ConnectivityGenerator::generate(
     SDFField sdf_coarse;
     auto roi = input.area.geometry.empty() ? BoundingBox2d{} : input.area.geometry.bbox();
     if (roi.width() < 1) {
-        for (auto& l : input.lanes)
-            for (auto& p : l.geometry.points) roi.expand(p);
+        for (auto& l : input.lanes) {
+            for (auto& p : l.geometry.points)
+                roi.expand(p);
+        }
         roi.min_pt -= Vec2d(20, 20);
         roi.max_pt += Vec2d(20, 20);
     }
@@ -301,25 +437,40 @@ std::vector<ConnectivityCurve> ConnectivityGenerator::generate(
     GlobalCoordinator coord;
     coord.build(input.connectivities, input);
 
+    // Initialize persistent spatial index for efficient sibling queries
+    initializePersistentQuadTree(input);
+
     std::vector<ConnectivityCurve> results;
     results.reserve(input.connectivities.size());
-
     std::unordered_map<ConnId, const Connectivity*> cmap;
-    for (auto& c : input.connectivities) cmap[c.id] = &c;
-
+    for (auto& c : input.connectivities) {
+        cmap[c.id] = &c;
+    }
     std::unordered_map<ConnId, BezierCurve> done;
     for (auto& group : coord.groups()) {
         for (auto& cid : group.conn_ids) {
             auto* conn = cmap[cid];
             if (!conn) continue;
-            auto sibs = buildSiblings(cid, done, cluster_solver_);
+
+            // Use optimized version with spatial indexing
+            auto sibs = buildSiblingsOptimized(cid, done, cluster_solver_, input);
+
             auto cc = generateOne(*conn, input, sdf, sdf_coarse, sibs);
-            if (cc.curve) done[cid] = *cc.curve;
+            if (cc.curve) {
+                done[cid] = *cc.curve;
+
+                // Add the newly generated curve to the persistent spatial index
+                addCurveToPersistentQuadTree(cid, *cc.curve);
+            }
+
             results.push_back(std::move(cc));
         }
         // After each priority group: mark obstacle-adjacent crossings as soft
         cluster_solver_.checkAndMarkA2(done, sdf, 1.5);
     }
+
+    // Clean up the persistent spatial index after processing
+    clearPersistentSpatialIndex();
 
     auto t1 = std::chrono::steady_clock::now();
     if (out_ms) *out_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();

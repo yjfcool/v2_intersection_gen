@@ -339,3 +339,47 @@ BezierCurve optimiseCurve(
     }
     return cost.full_param_mode ? curveFromParamsFull(params, cost.proto) : curveFromParams(params, cost.proto);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  optimiseCurveWithEarlyStopping — version with convergence detection
+// ─────────────────────────────────────────────────────────────────────────────
+BezierCurve optimiseCurveWithEarlyStopping(
+    PenaltyCost& cost, LBFGSSolver& solver, const BezierCurve& initial, int outer_iters) {
+    cost.proto = initial;
+    cost.buildCache();
+    VecXd params = cost.full_param_mode ? curveToParamsFull(initial) : curveToParams(initial);
+
+    double prev_total_penalty = std::numeric_limits<double>::max();
+    int stable_iter_count = 0;
+
+    for (int outer = 0; outer < outer_iters; ++outer) {
+        auto res = solver.solve([&](const VecXd& p, VecXd& g) { return cost(p, g); }, params);
+        params = res.x;
+
+        BezierCurve c = curveFromParams(params, cost.proto);
+        double op = cost.evalObstacle(c);
+        double bp = cost.evalBoundary(c);
+        double fp = cost.evalFence(c);
+        double cp = cost.evalCluster(c);
+        cost.weights.update(op, bp, fp, cp);
+
+        double total_penalty = op + bp + fp + cp;
+
+        // Check for convergence
+        if (std::abs(prev_total_penalty - total_penalty) < cost.convergence_tolerance) {
+            stable_iter_count++;
+            if (stable_iter_count >= cost.stable_iter_threshold) {
+                // Converged, break early
+                break;
+            }
+        } else {
+            stable_iter_count = 0; // Reset counter when improvement occurs
+        }
+
+        prev_total_penalty = total_penalty;
+
+        if (total_penalty < 1e-6)
+            break; // all constraints satisfied
+    }
+    return cost.full_param_mode ? curveFromParamsFull(params, cost.proto) : curveFromParams(params, cost.proto);
+}

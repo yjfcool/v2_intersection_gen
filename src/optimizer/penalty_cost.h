@@ -60,6 +60,10 @@ public:
     Vec2d start_tan_dir{0, 0}; // set to t0 from Lane::geometry
     Vec2d end_tan_dir{0, 0}; // set to t1 from Lane::geometry
 
+    // Convergence detection parameters
+    double convergence_tolerance = 1e-6;
+    int stable_iter_threshold = 3;
+
     void buildCache();
 
     double operator()(const VecXd& params, VecXd& grad);
@@ -87,3 +91,5 @@ private:
 };
 
 BezierCurve optimiseCurve(PenaltyCost& cost, LBFGSSolver& solver, const BezierCurve& initial, int outer_iters = 4);
+// New version with early stopping
+BezierCurve optimiseCurveWithEarlyStopping(PenaltyCost& cost, LBFGSSolver& solver, const BezierCurve& initial, int outer_iters = 4);
