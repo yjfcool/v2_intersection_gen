@@ -29,13 +29,13 @@ int main(int argc, char* argv[]) {
         //if (access(fpth.c_str(), F_OK) == -1) continue;
         std::string fname = fspath.stem().string();
         std::cout << "\n===== Loading input from: " << fname << " =====" << std::endl;
-        std::vector<IntersectionInput> inputs = {IntersectionIO::loadFromFile(fpth)};
+        std::vector<isg::IntersectionInput> inputs = {isg::IntersectionIO::loadFromFile(fpth)};
         for (auto& inp : inputs) {
             std::cout << "Processing input with " << inp.connectivities.size() << " connectivities and "
                       << inp.lanes.size() << " lanes" << std::endl;
 
-            IntersectionShapeGenerator gen;
-            IntersectionOutput out;
+            isg::IntersectionShapeGenerator gen;
+            isg::IntersectionOutput out;
 
             auto start_time = std::chrono::high_resolution_clock::now();
             bool success = gen.generate(inp, out);

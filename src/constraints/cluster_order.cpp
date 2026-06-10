@@ -3,6 +3,8 @@
 #include "curve/curve_utils.h"
 #include <algorithm>
 
+namespace isg {
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Turn-type geometry order for non-crossing constraint within a cluster.
 //
@@ -191,4 +193,6 @@ void ClusterOrderSolver::checkAndMarkA2(
         for (auto& pt : curveCrossings(ia->second, ib->second))
             markObstacleExempt(pair, pt, sdf, r);
     }
+}
+
 }

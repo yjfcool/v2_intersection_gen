@@ -5,6 +5,8 @@
 #include <cmath>
 #include <algorithm>
 
+namespace isg {
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -675,4 +677,6 @@ std::vector<Vec2d> sdfMaxClearancePath(
     (void)sdf;
     (void)fence;
     return {start, goal};
+}
+
 }

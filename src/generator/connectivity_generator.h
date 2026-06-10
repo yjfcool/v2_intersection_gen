@@ -5,6 +5,8 @@
 #include "constraints/cluster_order.h"
 #include "utils/quadtree.h"
 
+namespace isg {
+
 struct OptGroup {
     std::vector<ConnId> conn_ids;
     int priority = 0;
@@ -57,3 +59,5 @@ private:
     void addCurveToPersistentQuadTree(const ConnId& id, const BezierCurve& curve);
     void clearPersistentSpatialIndex();
 };
+
+}

@@ -3,6 +3,8 @@
 #include "types.h"
 #include <unordered_map>
 
+namespace isg {
+
 enum class CrossExemption {
     None, StructuralCross, ObstacleCross
 };
@@ -41,3 +43,5 @@ private:
     std::unordered_map<LaneId, std::vector<ConnId>> entry_order_;
     std::unordered_map<LaneId, std::vector<ConnId>> exit_order_;
 };
+
+}

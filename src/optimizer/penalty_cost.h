@@ -5,6 +5,8 @@
 #include "lbfgs_solver.h"
 #include <vector>
 
+namespace isg {
+
 struct SiblingCurve {
     BezierCurve curve;
     std::vector<Vec2d> sample_pts; // pre-sampled for fast cluster check
@@ -93,3 +95,5 @@ private:
 BezierCurve optimiseCurve(PenaltyCost& cost, LBFGSSolver& solver, const BezierCurve& initial, int outer_iters = 4);
 // New version with early stopping
 BezierCurve optimiseCurveWithEarlyStopping(PenaltyCost& cost, LBFGSSolver& solver, const BezierCurve& initial, int outer_iters = 4);
+
+}
